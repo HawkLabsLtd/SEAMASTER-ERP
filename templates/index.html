@@ -1,0 +1,417 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="dashboard-page-container">
+
+  <!-- Executive Dashboard Hero Header -->
+  <div class="today-hero-card mb-4">
+    <div class="today-hero-content">
+      <div class="today-hero-icon-box">
+        <i class="fas fa-chart-line"></i>
+      </div>
+      <div class="today-hero-text">
+        <div class="today-hero-title-row">
+          <h2 class="today-hero-title">داشبورد جامع مدیریت و تصمیم‌گیری</h2>
+          <span class="live-clock-pill"><i class="fas fa-calendar-day me-1"></i> امروز: {{ format_jalali_weekday_dm(now_dt) }}</span>
+        </div>
+        <p class="today-hero-subtitle">سامانه یکپارچه نظارت بر جلسات، پیگیری مصوبات و شاخص‌های کلیدی عملکرد {{ org_name }}</p>
+      </div>
+    </div>
+    
+    <div class="today-hero-actions">
+      <a href="{{ url_for('meetings_bp.meeting_new') }}" class="btn btn-hero-action">
+        <i class="fas fa-plus-circle me-1"></i> ثبت جلسه جدید
+      </a>
+      <a href="{{ url_for('resolutions_bp.resolutions_new') }}" class="btn btn-hero-action">
+        <i class="fas fa-file-medical me-1"></i> افزودن مصوبه
+      </a>
+    </div>
+  </div>
+
+  <!-- 1. Top 4 Executive KPI Cards -->
+  <div class="kpi-cards-grid mb-4">
+    <div class="kpi-card-item kpi-blue">
+      <div class="kpi-card-body">
+        <div class="kpi-icon-box bg-blue-soft">
+          <i class="fas fa-users"></i>
+        </div>
+        <div class="kpi-info">
+          <span class="kpi-label">تعداد کل جلسات</span>
+          <h3 class="kpi-number">{{ to_farsi_digits(total_meetings) }}</h3>
+        </div>
+      </div>
+      <div class="kpi-footer-bar">
+        <span>جلسات هیئت رئیسه و مدیران</span>
+      </div>
+    </div>
+
+    <div class="kpi-card-item kpi-indigo">
+      <div class="kpi-card-body">
+        <div class="kpi-icon-box bg-indigo-soft">
+          <i class="fas fa-file-contract"></i>
+        </div>
+        <div class="kpi-info">
+          <span class="kpi-label">تعداد کل مصوبات</span>
+          <h3 class="kpi-number">{{ to_farsi_digits(total_resolutions) }}</h3>
+        </div>
+      </div>
+      <div class="kpi-footer-bar">
+        <span>مصوبات فعال و آرشیو شده</span>
+      </div>
+    </div>
+
+    <div class="kpi-card-item kpi-emerald">
+      <div class="kpi-card-body">
+        <div class="kpi-icon-box bg-emerald-soft">
+          <i class="fas fa-check-circle"></i>
+        </div>
+        <div class="kpi-info">
+          <span class="kpi-label">مصوبات تکمیل‌شده</span>
+          <h3 class="kpi-number">{{ to_farsi_digits(counts.completed) }}</h3>
+        </div>
+      </div>
+      <div class="kpi-footer-bar">
+        <span>نرخ اقدام موفق</span>
+      </div>
+    </div>
+
+    <div class="kpi-card-item kpi-amber">
+      <div class="kpi-card-body">
+        <div class="kpi-icon-box bg-amber-soft">
+          <i class="fas fa-hourglass-half"></i>
+        </div>
+        <div class="kpi-info">
+          <span class="kpi-label">گذشته از موعد</span>
+          <h3 class="kpi-number">{{ to_farsi_digits(overdue) }}</h3>
+        </div>
+      </div>
+      <div class="kpi-footer-bar">
+        <span>نیازمند پیگیری فوری</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. Embedded Dashboard Launcher Cards -->
+  <div class="launchers-grid mb-4" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px;">
+    <a href="{{ url_for('energy_dashboard.index') }}" class="launcher-card" style="border-top: 3px solid #f59e0b;">
+      <div class="launcher-icon bg-gradient-amber" style="background: linear-gradient(135deg, #f59e0b, #d97706); color: #fff;">
+        <i class="fas fa-bolt"></i>
+      </div>
+      <div class="launcher-content">
+        <h4 class="launcher-title">داشبورد مصرف انرژی</h4>
+        <p class="launcher-desc">پایش برق، گاز، آب و پایداری سازمانی</p>
+      </div>
+      <i class="fas fa-arrow-left launcher-arrow"></i>
+    </a>
+
+    <a href="{{ url_for('hr_dashboard.index') }}" class="launcher-card">
+      <div class="launcher-icon bg-gradient-blue">
+        <i class="fas fa-users"></i>
+      </div>
+      <div class="launcher-content">
+        <h4 class="launcher-title">داشبورد منابع انسانی</h4>
+        <p class="launcher-desc">تحلیل پرسنل، هرم سازمانی و آمار جمعیتی</p>
+      </div>
+      <i class="fas fa-arrow-left launcher-arrow"></i>
+    </a>
+
+    <a href="/dash/budget/" class="launcher-card">
+      <div class="launcher-icon bg-gradient-emerald">
+        <i class="fas fa-chart-pie"></i>
+      </div>
+      <div class="launcher-content">
+        <h4 class="launcher-title">داشبورد بودجه و مالی</h4>
+        <p class="launcher-desc">گزارش هزینه‌ها، درآمدها و انحراف بودجه</p>
+      </div>
+      <i class="fas fa-arrow-left launcher-arrow"></i>
+    </a>
+
+    <a href="{{ url_for('email_dashboard.index') }}" class="launcher-card">
+      <div class="launcher-icon bg-gradient-purple">
+        <i class="fas fa-envelope-open-text"></i>
+      </div>
+      <div class="launcher-content">
+        <h4 class="launcher-title">داشبورد ایمیل مارکتینگ</h4>
+        <p class="launcher-desc">تحلیل نرخ بازگشایی، کلیک و کمپین‌ها</p>
+      </div>
+      <i class="fas fa-arrow-left launcher-arrow"></i>
+    </a>
+
+    <a href="{{ url_for('performance_bp.index') }}" class="launcher-card">
+      <div class="launcher-icon bg-gradient-amber">
+        <i class="fas fa-globe"></i>
+      </div>
+      <div class="launcher-content">
+        <h4 class="launcher-title">تحلیل عملکرد پورتال</h4>
+        <p class="launcher-desc">آمار سئو، بازدید صفحات و رفتار مخاطبان</p>
+      </div>
+      <i class="fas fa-arrow-left launcher-arrow"></i>
+    </a>
+  </div>
+
+  <!-- 3. Two-Column Live Tables: Upcoming Meetings & Open Resolutions -->
+  <div class="grid-two mb-4">
+    <!-- Upcoming Meetings -->
+    <div class="card agenda-card">
+      <div class="agenda-card-header">
+        <div class="agenda-header-title-box">
+          <div class="agenda-icon-wrapper icon-meetings">
+            <i class="fas fa-calendar-star"></i>
+          </div>
+          <div>
+            <h3 class="agenda-card-title">جلسات پیشِ‌رو</h3>
+            <span class="agenda-card-sub">نشست‌های دارای زمان‌بندی فعال</span>
+          </div>
+        </div>
+        <a class="btn btn-sm btn-ghost" href="{{ url_for('meetings_bp.meeting_list') }}">مشاهده همه</a>
+      </div>
+
+      <div class="agenda-card-body p-0">
+        {% if upcoming_meetings %}
+        <div class="table-responsive">
+          <table class="table table-hover mb-0">
+            <thead>
+              <tr>
+                <th>عنوان جلسه</th>
+                <th>تاریخ برگزاری</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for m in upcoming_meetings %}
+              <tr>
+                <td><strong>{{ m.title | e }}</strong></td>
+                <td><span class="badge badge-light"><i class="far fa-clock me-1"></i> {{ format_jalali_dmy(m.scheduled_at) }}</span></td>
+                <td class="text-start">
+                  <a class="btn btn-sm btn-secondary" href="{{ url_for('meetings_bp.meeting_detail', meeting_id=m.id) }}">
+                    مشاهده <i class="fas fa-chevron-left ms-1"></i>
+                  </a>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div class="p-4 text-center text-muted">جلسه‌ای در آینده برنامه‌ریزی نشده است.</div>
+        {% endif %}
+      </div>
+      {% if up_has_prev or up_has_next %}
+      <div class="card-footer d-flex justify-content-between p-2">
+        {% if up_has_prev %}<a class="btn btn-sm btn-ghost" href="{{ url_for('main_bp.index', up_page=up_page-1) }}">جدیدتر</a>{% else %}<span></span>{% endif %}
+        {% if up_has_next %}<a class="btn btn-sm btn-ghost" href="{{ url_for('main_bp.index', up_page=up_page+1) }}">قدیمی‌تر</a>{% endif %}
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- Open Resolutions -->
+    <div class="card agenda-card">
+      <div class="agenda-card-header">
+        <div class="agenda-header-title-box">
+          <div class="agenda-icon-wrapper icon-resolutions">
+            <i class="fas fa-file-alt"></i>
+          </div>
+          <div>
+            <h3 class="agenda-card-title">مصوبات باز و در جریان</h3>
+            <span class="agenda-card-sub">پیگیری آخرین وضعیت پیشرفت</span>
+          </div>
+        </div>
+        <a class="btn btn-sm btn-ghost" href="{{ url_for('resolutions_bp.resolutions_list') }}">مشاهده همه</a>
+      </div>
+
+      <div class="agenda-card-body p-0">
+        {% if open_resolutions %}
+        <div class="table-responsive" style="overflow-x: hidden;">
+          <table class="table dashboard-compact-table table-hover align-middle mb-0">
+            <thead>
+              <tr>
+                <th style="width: 36%;">عنوان مصوبه</th>
+                <th style="width: 26%;">جلسه مربوطه</th>
+                <th class="text-center" style="width: 10%;">وضعیت</th>
+                <th style="width: 16%;">پیشرفت</th>
+                <th style="width: 12%;">سررسید</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for r in open_resolutions %}
+              <tr>
+                <td>
+                  <span class="dash-cell-title" title="{{ r.title | e }}">{{ r.title | e }}</span>
+                </td>
+                <td>
+                  <a href="{{ url_for('meetings_bp.meeting_detail', meeting_id=r.meeting_id) }}" class="dash-cell-meeting" title="{{ r.meeting.title | e }}">
+                    {{ r.meeting.title | e }}
+                  </a>
+                </td>
+                <td class="text-center">
+                  <span class="status-dot-only dot-{{ r.status }}" title="{{ status_label_fa(r.status) }}"></span>
+                </td>
+                <td>
+                  <div class="dash-progress-wrap">
+                    <div class="progress">
+                      <div class="progress-bar {% if r.progress == 100 %}bg-success{% elif r.progress >= 50 %}bg-primary{% else %}bg-warning{% endif %}" style="width: {{ r.progress }}%;"></div>
+                    </div>
+                    <span class="dash-progress-text">{{ to_farsi_digits(r.progress) }}%</span>
+                  </div>
+                </td>
+                <td>
+                  <span class="dash-cell-date">
+                    {{ format_jalali_date_any(r.due_date) if r.due_date else '—' }}
+                  </span>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div class="p-4 text-center text-muted">مصوبه بازی در حال حاضر وجود ندارد.</div>
+        {% endif %}
+      </div>
+
+      <!-- Status Legend Footer -->
+      <div class="table-legend-bar">
+        <span class="legend-title"><i class="fas fa-info-circle text-primary me-1"></i> راهنمای وضعیت:</span>
+        <div class="legend-items">
+          <span class="legend-item"><span class="status-dot dot-completed"></span> تکمیل شده</span>
+          <span class="legend-item"><span class="status-dot dot-in-progress"></span> در حال انجام</span>
+          <span class="legend-item"><span class="status-dot dot-approved"></span> تأیید شده</span>
+          <span class="legend-item"><span class="status-dot dot-pending"></span> در انتظار</span>
+        </div>
+      </div>
+
+      {% if open_has_prev or open_has_next %}
+      <div class="card-footer d-flex justify-content-between p-2">
+        {% if open_has_prev %}<a class="btn btn-sm btn-ghost" href="{{ url_for('main_bp.index', open_page=open_page-1) }}">جدیدتر</a>{% else %}<span></span>{% endif %}
+        {% if open_has_next %}<a class="btn btn-sm btn-ghost" href="{{ url_for('main_bp.index', open_page=open_page+1) }}">قدیمی‌تر</a>{% endif %}
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- 4. Heatmap Activity & Deadline Alerts -->
+  <div class="grid-two mb-4">
+    <!-- Activity Heatmap -->
+    <div class="card agenda-card">
+      <div class="agenda-card-header">
+        <div class="agenda-header-title-box">
+          <div class="agenda-icon-wrapper icon-tasks">
+            <i class="fas fa-th"></i>
+          </div>
+          <div>
+            <h3 class="agenda-card-title">نقشه حرارتی فعالیت روزانه</h3>
+            <span class="agenda-card-sub">تراکم جلسات، مصوبات و رویدادها</span>
+          </div>
+        </div>
+      </div>
+      <div class="agenda-card-body">
+        <div class="contrib-grid-wrapper">
+          <div class="contrib-grid"
+            style="display:grid; grid-auto-flow: column; grid-template-columns: repeat(12, 1fr); grid-template-rows: repeat(7, 1fr); gap:5px; width:100%; height:170px;">
+            {% for week in activity_weeks %}
+            {% for cell in week %}
+            {% set lvl = 0 %}
+            {% if cell.total >= 5 %}{% set lvl = 4 %}
+            {% elif cell.total >= 3 %}{% set lvl = 3 %}
+            {% elif cell.total >= 2 %}{% set lvl = 2 %}
+            {% elif cell.total >= 1 %}{% set lvl = 1 %}{% endif %}
+            <a href="{{ url_for('main_bp.index', selected_date=cell.date) }}"
+              title="{{ cell.date }} | جلسات: {{ to_farsi_digits(cell.meetings) }} | مصوبات: {{ to_farsi_digits(cell.resolutions) }} | اقدامات: {{ to_farsi_digits(cell.actions) }}"
+              style="display:block;width:100%; height:100%; border-radius:3px; background-color:{% if lvl==0 %}#e2e8f0{% elif lvl==1 %}#bfdbfe{% elif lvl==2 %}#93c5fd{% elif lvl==3 %}#60a5fa{% else %}#2563eb{% endif %}; transition: transform 0.1s ease;"></a>
+            {% endfor %}
+            {% endfor %}
+          </div>
+          <div class="legend d-flex align-items-center gap-2 justify-content-end mt-2">
+            <span class="text-muted small">کمتر</span>
+            <span style="width:12px;height:12px;background:#e2e8f0;border-radius:2px;"></span>
+            <span style="width:12px;height:12px;background:#bfdbfe;border-radius:2px;"></span>
+            <span style="width:12px;height:12px;background:#93c5fd;border-radius:2px;"></span>
+            <span style="width:12px;height:12px;background:#60a5fa;border-radius:2px;"></span>
+            <span style="width:12px;height:12px;background:#2563eb;border-radius:2px;"></span>
+            <span class="text-muted small">بیشتر</span>
+          </div>
+        </div>
+
+        {% if selected_date_str %}
+        <div class="mt-3 p-3 bg-light rounded-3 border">
+          <h5 class="fw-bold mb-2 text-primary">رویدادهای {{ format_jalali_dmy(datetime.strptime(selected_date_str, '%Y-%m-%d')) }}</h5>
+          <div class="grid-two">
+            <div>
+              <span class="fw-bold small d-block mb-1">جلسات:</span>
+              <ul class="list-unstyled mb-0 small">
+                {% for m in meetings_on_day %}
+                <li><a href="{{ url_for('meetings_bp.meeting_detail', meeting_id=m.id) }}">{{ m.title }}</a> ({{ format_jalali_datetime(m.scheduled_at) }})</li>
+                {% else %}
+                <li class="text-muted">جلسه‌ای در این روز ثبت نشده است.</li>
+                {% endfor %}
+              </ul>
+            </div>
+            <div>
+              <span class="fw-bold small d-block mb-1">مصوبات:</span>
+              <ul class="list-unstyled mb-0 small">
+                {% for r in resolutions_on_day %}
+                <li><a href="{{ url_for('resolutions_bp.resolutions_edit', res_id=r.id) }}">{{ r.title }}</a> — {{ status_label_fa(r.status) }}</li>
+                {% else %}
+                <li class="text-muted">مصوبه‌ای در این روز ثبت نشده است.</li>
+                {% endfor %}
+              </ul>
+            </div>
+          </div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Deadline Alerts -->
+    <div class="card agenda-card">
+      <div class="agenda-card-header">
+        <div class="agenda-header-title-box">
+          <div class="agenda-icon-wrapper icon-resolutions">
+            <i class="fas fa-bell"></i>
+          </div>
+          <div>
+            <h3 class="agenda-card-title">هشدارهای مهلت مصوبات</h3>
+            <span class="agenda-card-sub">موعدهای نزدیک و سررسید فوری</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="agenda-card-body p-0">
+        {% if deadline_alerts %}
+        <div class="table-responsive">
+          <table class="table table-hover mb-0">
+            <thead>
+              <tr>
+                <th>عنوان مصوبه</th>
+                <th>مهلت</th>
+                <th>باقی‌مانده</th>
+                <th>مسئول انجام</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for item in deadline_alerts %}
+              <tr>
+                <td><strong>{{ item.res.title }}</strong></td>
+                <td>{{ format_jalali_dmy(item.res.due_date) if item.res.due_date else '—' }}</td>
+                <td>
+                  <span class="badge {% if item.days_left <= 2 %}badge-danger{% else %}badge-warning{% endif %}">
+                    {{ to_farsi_digits(item.days_left) }} روز
+                  </span>
+                </td>
+                <td>{{ item.res.assigned_to.name if item.res.assigned_to else '—' }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div class="p-4 text-center text-muted">
+          <i class="fas fa-check-circle text-success fa-2x mb-2 d-block"></i>
+          هیچ مصوبه‌ای در آستانه سررسید بحرانی نیست.
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

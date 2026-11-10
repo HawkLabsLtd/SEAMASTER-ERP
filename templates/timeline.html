@@ -1,0 +1,791 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<style>
+    /* Timeline specific styles */
+    .timeline-container {
+        position: relative;
+        padding: 40px 0;
+        margin-bottom: 40px;
+    }
+
+    .timeline-line {
+        position: absolute;
+        top: 50%;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: #e0e0e0;
+        transform: translateY(-50%);
+        z-index: 0;
+        border-radius: 2px;
+    }
+
+    .timeline-items {
+        display: flex;
+        overflow-x: auto;
+        padding: 40px 20px;
+        gap: 80px;
+        position: relative;
+        z-index: 1;
+        scroll-behavior: smooth;
+        scrollbar-width: thin;
+        scrollbar-color: var(--accent-color) #f1f1f1;
+    }
+
+    .timeline-items::-webkit-scrollbar {
+        height: 8px;
+    }
+
+    .timeline-items::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 4px;
+    }
+
+    .timeline-items::-webkit-scrollbar-thumb {
+        background: var(--accent-color);
+        border-radius: 4px;
+    }
+
+    .timeline-item {
+        flex: 0 0 auto;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        opacity: 0;
+        animation: fadeIn 0.5s forwards;
+        position: relative;
+    }
+
+    .timeline-item:hover {
+        transform: translateY(-5px);
+    }
+
+    .timeline-dot {
+        width: 24px;
+        height: 24px;
+        background: #fff;
+        border: 6px solid var(--secondary-color);
+        border-radius: 50%;
+        margin: 15px 0;
+        transition: all 0.3s;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        z-index: 2;
+    }
+
+    .timeline-item.active .timeline-dot {
+        background: var(--accent-color);
+        border-color: var(--primary-color);
+        transform: scale(1.3);
+        box-shadow: 0 0 0 8px rgba(41, 182, 246, 0.2);
+    }
+
+    .timeline-date {
+        font-weight: 700;
+        font-size: 15px;
+        color: var(--primary-color);
+    }
+
+    .timeline-number {
+        font-size: 13px;
+        color: #666;
+        background: #fff;
+        padding: 4px 12px;
+        border-radius: 20px;
+        border: 1px solid #eee;
+    }
+
+    /* Details Section */
+    .details-container {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+        gap: 25px;
+        opacity: 0;
+        transition: opacity 0.5s;
+    }
+
+    .details-container.visible {
+        opacity: 1;
+    }
+
+    .resolution-card {
+        background: var(--card-bg);
+        border-radius: 16px;
+        padding: 25px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.04);
+        border: 1px solid rgba(0, 0, 0, 0.05);
+        transition: transform 0.3s, box-shadow 0.3s;
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+    }
+
+    .resolution-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 15px 35px rgba(0, 0, 0, 0.08);
+    }
+
+    .card-header {
+        margin-bottom: 20px;
+        padding-bottom: 15px;
+        border-bottom: 1px solid #f0f0f0;
+    }
+
+    .topic {
+        font-weight: 700;
+        font-size: 16px;
+        color: var(--primary-color);
+        line-height: 1.6;
+        margin-bottom: 10px;
+    }
+
+    .status-badge {
+        display: inline-block;
+        padding: 6px 12px;
+        border-radius: 8px;
+        font-size: 12px;
+        font-weight: 500;
+        background: #f5f7fa;
+        color: #666;
+    }
+
+    .progress-container {
+        margin: 20px 0;
+    }
+
+    .progress-bar {
+        height: 8px;
+        background: #f0f0f0;
+        border-radius: 4px;
+        overflow: hidden;
+        margin-bottom: 8px;
+    }
+
+    .progress-fill {
+        height: 100%;
+        background: var(--accent-color);
+        border-radius: 4px;
+        transition: width 1s ease-out;
+    }
+
+    .progress-text {
+        font-size: 12px;
+        color: #666;
+        text-align: left;
+    }
+
+    .edit-progress { display:flex; align-items:center; gap:8px; margin-top:10px; }
+    .edit-progress input { width: 80px; }
+
+    .meta-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 15px;
+        font-size: 13px;
+        color: #555;
+        margin-top: auto;
+        background: #f8f9fa;
+        padding: 15px;
+        border-radius: 12px;
+    }
+
+    .meta-item {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .meta-label {
+        color: #999;
+        font-size: 11px;
+    }
+
+    .description {
+        font-size: 14px;
+        color: #555;
+        line-height: 1.8;
+        margin-bottom: 20px;
+        background: #fff;
+        padding: 10px;
+        border-radius: 8px;
+    }
+
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .loading {
+        text-align: center;
+        padding: 60px;
+        font-size: 18px;
+        color: #666;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 40px;
+        color: #999;
+        grid-column: 1 / -1;
+    }
+
+    .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 30px;
+    }
+
+    select {
+        padding: 10px 20px;
+        font-family: inherit;
+        font-size: 14px;
+        border-radius: 8px;
+        border: 1px solid #e0e0e0;
+        background: #f8f9fa;
+        cursor: pointer;
+        outline: none;
+        transition: all 0.3s;
+        min-width: 200px;
+    }
+
+    select:focus {}
+
+    .timeline-dot {
+        width: 24px;
+        height: 24px;
+        background: #fff;
+        border: 6px solid var(--secondary-color);
+        border-radius: 50%;
+        margin: 15px 0;
+        transition: all 0.3s;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        z-index: 2;
+    }
+
+    .timeline-item.active .timeline-dot {
+        background: var(--accent-color);
+        border-color: var(--primary-color);
+        transform: scale(1.3);
+        box-shadow: 0 0 0 8px rgba(41, 182, 246, 0.2);
+    }
+
+    .timeline-date {
+        font-weight: 700;
+        font-size: 15px;
+        color: var(--primary-color);
+    }
+
+    .timeline-number {
+        font-size: 13px;
+        color: #666;
+        background: #fff;
+        padding: 4px 12px;
+        border-radius: 20px;
+        border: 1px solid #eee;
+    }
+
+    /* Details Section */
+    .details-container {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+        gap: 25px;
+        opacity: 0;
+        transition: opacity 0.5s;
+    }
+
+    .details-container.visible {
+        opacity: 1;
+    }
+
+    .resolution-card {
+        background: var(--card-bg);
+        border-radius: 16px;
+        padding: 25px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.04);
+        border: 1px solid rgba(0, 0, 0, 0.05);
+        transition: transform 0.3s, box-shadow 0.3s;
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+    }
+
+    .resolution-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 15px 35px rgba(0, 0, 0, 0.08);
+    }
+
+    .card-header {
+        margin-bottom: 20px;
+        padding-bottom: 15px;
+        border-bottom: 1px solid #f0f0f0;
+    }
+
+    .topic {
+        font-weight: 700;
+        font-size: 16px;
+        color: var(--primary-color);
+        line-height: 1.6;
+        margin-bottom: 10px;
+    }
+
+    .status-badge {
+        display: inline-block;
+        padding: 6px 12px;
+        border-radius: 8px;
+        font-size: 12px;
+        font-weight: 500;
+        background: #f5f7fa;
+        color: #666;
+    }
+
+    .progress-container {
+        margin: 20px 0;
+    }
+
+    .progress-bar {
+        height: 8px;
+        background: #f0f0f0;
+        border-radius: 4px;
+        overflow: hidden;
+        margin-bottom: 8px;
+    }
+
+    .progress-fill {
+        height: 100%;
+        background: var(--accent-color);
+        border-radius: 4px;
+        transition: width 1s ease-out;
+    }
+
+    .progress-text {
+        font-size: 12px;
+        color: #666;
+        text-align: left;
+    }
+
+    .meta-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 15px;
+        font-size: 13px;
+        color: #555;
+        margin-top: auto;
+        background: #f8f9fa;
+        padding: 15px;
+        border-radius: 12px;
+    }
+
+    .meta-item {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .meta-label {
+        color: #999;
+        font-size: 11px;
+    }
+
+    .description {
+        font-size: 14px;
+        color: #555;
+        line-height: 1.8;
+        margin-bottom: 20px;
+        background: #fff;
+        padding: 10px;
+        border-radius: 8px;
+    }
+
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .loading {
+        text-align: center;
+        padding: 60px;
+        font-size: 18px;
+        color: #666;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 40px;
+        color: #999;
+        grid-column: 1 / -1;
+    }
+
+    .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 30px;
+    }
+
+    select {
+        padding: 10px 20px;
+        font-family: inherit;
+        font-size: 14px;
+        border-radius: 8px;
+        border: 1px solid #e0e0e0;
+        background: #f8f9fa;
+        cursor: pointer;
+        outline: none;
+        transition: all 0.3s;
+        min-width: 200px;
+    }
+
+    select:focus {
+        border-color: var(--accent-color);
+        box-shadow: 0 0 0 3px rgba(41, 182, 246, 0.1);
+    }
+
+    .toolbar { display:flex; align-items:center; gap:8px; }
+    .hidden { display:none; }
+</style>
+
+<div class="page-header">
+    <h2>پیگیری مصوبات</h2>
+    <select id="sourceSelect">
+        <option value="presidency">پیگیری مصوبات هیأت رئیسه</option>
+        <option value="representatives">پیگیری مصوبات هیات نمایندگان</option>
+        <option value="managerial">مصوبات شورای مدیران</option>
+    </select>
+</div>
+
+<div class="card" style="margin-bottom:20px;">
+  <div class="card-body">
+    <div style="display:flex; align-items:center; justify-content:space-between;">
+      <h3 style="margin:0;">افزودن جلسه به تایم‌لاین</h3>
+      <div class="toolbar">
+        <small class="muted">نوع جلسه از انتخاب بالا تعیین می‌شود</small>
+        <button class="btn btn-ghost" id="btnToggleMeeting">نمایش فرم</button>
+        <button class="btn btn-ghost" id="btnToggleResolutionTop">افزودن مصوبه</button>
+      </div>
+    </div>
+    <div class="form hidden" id="meetingForm">
+      <div class="form-group">
+        <label>شماره جلسه</label>
+        <input type="text" id="newMeetingNumber" placeholder="مثال: ۱۲۳" />
+      </div>
+      <div class="form-group">
+        <label>تاریخ جلسه (شمسی)</label>
+        <input type="text" id="newMeetingDate" placeholder="۱۴۰۴-۰۸-۱۵" />
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-primary" id="btnCreateMeeting">افزودن جلسه</button>
+      </div>
+    </div>
+    <div class="form hidden" id="resolutionFormTop" style="margin-top:12px;">
+      <div class="form-group"><label>جلسه</label>
+        <select id="selectResMeeting"></select>
+      </div>
+      <div class="form-group"><label>موضوع</label><input type="text" id="resTopicTop" /></div>
+      <div class="form-group"><label>مسئول پیگیری</label><input type="text" id="resResponsibleTop" /></div>
+      <div class="form-group"><label>وضعیت پیگیری</label><input type="text" id="resStatusTop" placeholder="در دست اقدام" /></div>
+      <div class="form-group"><label>درصد پیشرفت</label><input type="number" id="resProgressTop" min="0" max="100" value="0" /></div>
+      <div class="form-group"><label>مهلت اقدام (شمسی)</label><input type="text" id="resDueDateTop" placeholder="۱۴۰۴-۰۸-۲۰" /></div>
+      <div class="form-group"><label>شماره نامه</label><input type="text" id="resLetterTop" /></div>
+      <div class="form-group"><label>توضیحات</label><textarea id="resDescriptionTop" rows="2"></textarea></div>
+      <div class="form-actions"><button class="btn btn-primary" id="btnCreateResolutionTop">افزودن مصوبه</button></div>
+    </div>
+  </div>
+  </div>
+
+<div class="timeline-container">
+    <div class="timeline-line"></div>
+    <div class="timeline-items" id="timelineItems">
+        <!-- Items injected here -->
+    </div>
+</div>
+
+<div class="details-container" id="detailsContainer">
+    <!-- Details injected here -->
+</div>
+
+<script>
+    const sourceSelect = document.getElementById('sourceSelect');
+    const timelineItems = document.getElementById('timelineItems');
+    const detailsContainer = document.getElementById('detailsContainer');
+    const btnCreateMeeting = document.getElementById('btnCreateMeeting');
+    const inputNewMeetingNumber = document.getElementById('newMeetingNumber');
+    const inputNewMeetingDate = document.getElementById('newMeetingDate');
+    const meetingForm = document.getElementById('meetingForm');
+    const btnToggleMeeting = document.getElementById('btnToggleMeeting');
+    const btnToggleResolutionTop = document.getElementById('btnToggleResolutionTop');
+    const resolutionFormTop = document.getElementById('resolutionFormTop');
+    const selectResMeeting = document.getElementById('selectResMeeting');
+    const btnCreateResolutionTop = document.getElementById('btnCreateResolutionTop');
+
+    let currentData = [];
+
+    // Helper to clean data
+    function clean(val) {
+        if (val === null || val === undefined || val === 'nan' || val === 'NaN' || val === '') {
+            return null;
+        }
+        return val;
+    }
+
+    async function loadData(source) {
+        timelineItems.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> در حال بارگذاری...</div>';
+        detailsContainer.innerHTML = '';
+        detailsContainer.classList.remove('visible');
+
+        try {
+            const response = await fetch(`/api/timeline-data?source=${source}`);
+            const data = await response.json();
+            currentData = data;
+            renderTimeline(data);
+            populateMeetingSelect();
+
+            // Auto-select first item if exists
+            if (data.length > 0) {
+                selectMeeting(0);
+            } else {
+                timelineItems.innerHTML = '<div class="empty-state">داده‌ای یافت نشد</div>';
+            }
+        } catch (e) {
+            timelineItems.innerHTML = '<div class="loading">خطا در دریافت اطلاعات</div>';
+            console.error(e);
+        }
+    }
+
+    function renderTimeline(data) {
+        timelineItems.innerHTML = '';
+
+        data.forEach((meeting, index) => {
+            const item = document.createElement('div');
+            item.className = 'timeline-item';
+            item.style.animationDelay = `${index * 0.05}s`;
+            item.onclick = () => selectMeeting(index);
+
+            const date = clean(meeting.date) || 'تاریخ نامشخص';
+            const number = clean(meeting.number) ? `جلسه ${meeting.number}` : '-';
+
+            item.innerHTML = `
+                <div class="timeline-date">${date}</div>
+                <div class="timeline-dot"></div>
+                <div class="timeline-number">${number}</div>
+            `;
+
+            timelineItems.appendChild(item);
+        });
+    }
+
+    function selectMeeting(index) {
+        // Update active state
+        document.querySelectorAll('.timeline-item').forEach((el, i) => {
+            if (i === index) el.classList.add('active');
+            else el.classList.remove('active');
+        });
+
+        const meeting = currentData[index];
+        if (selectResMeeting) {
+            try { selectResMeeting.value = meeting.id; } catch (e) {}
+        }
+        renderDetails(meeting);
+    }
+
+    function renderDetails(meeting) {
+        detailsContainer.innerHTML = '';
+
+        // no inline resolution form; resolution form moved to top
+
+        (meeting.resolutions || []).forEach(res => {
+            const card = document.createElement('div');
+            card.className = 'resolution-card';
+
+            const progress = res.progress || 0;
+            const progressColor = progress === 100 ? '#4caf50' : (progress > 50 ? '#ff9800' : '#f44336');
+
+            const topic = clean(res.topic) || 'بدون عنوان';
+            const status = clean(res.status) || 'در دست اقدام';
+            const responsible = clean(res.responsible) || '-';
+            const dueDate = clean(res.due_date) || '-';
+            const description = clean(res.description);
+            const letterNumber = clean(res.letter_number);
+
+            card.innerHTML = `
+                <div class="card-header">
+                    <div class="topic">${topic}</div>
+                    <span class="status-badge">${status}</span>
+                </div>
+                
+                ${description ? `<div class="description">${description}</div>` : ''}
+                
+                <div class="progress-container">
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: ${progress}%; background-color: ${progressColor}"></div>
+                    </div>
+                    <div class="progress-text">${progress}% پیشرفت</div>
+                </div>
+
+                <div class="meta-grid">
+                    <div class="meta-item">
+                        <span class="meta-label">مسئول پیگیری</span>
+                        <span>${responsible}</span>
+                    </div>
+                    <div class="meta-item">
+                        <span class="meta-label">مهلت اقدام</span>
+                        <span>${dueDate}</span>
+                    </div>
+                    ${letterNumber ? `
+                    <div class="meta-item">
+                        <span class="meta-label">شماره نامه</span>
+                        <span>${letterNumber}</span>
+                    </div>` : ''}
+                </div>
+                <div class="edit-progress">
+                    <input type="number" class="progress-input" min="0" max="100" value="${progress}" />
+                    <button class="btn btn-ghost progress-save" data-id="${res.id}">ثبت درصد</button>
+                </div>
+            `;
+
+            detailsContainer.appendChild(card);
+
+            const saveBtn = card.querySelector('.progress-save');
+            const input = card.querySelector('.progress-input');
+            saveBtn.onclick = async () => {
+                const val = parseInt(input.value || '0');
+                const body = { resolution_id: saveBtn.getAttribute('data-id'), progress: isNaN(val) ? 0 : val };
+                const resp = await fetch('/api/timeline/update-resolution-progress', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+                });
+                const j = await resp.json();
+                if (j.ok) {
+                    await loadData(sourceSelect.value);
+                } else {
+                    alert(j.error || 'خطا در بروزرسانی درصد پیشرفت');
+                }
+            };
+        });
+
+        // Trigger reflow for transition
+        requestAnimationFrame(() => {
+            detailsContainer.classList.add('visible');
+        });
+    }
+
+    sourceSelect.addEventListener('change', (e) => {
+        loadData(e.target.value);
+        // Update URL without reloading
+        const url = new URL(window.location);
+        url.searchParams.set('source', e.target.value);
+        window.history.pushState({}, '', url);
+    });
+
+    btnCreateMeeting.addEventListener('click', async () => {
+        const body = {
+            type: sourceSelect.value,
+            number: inputNewMeetingNumber.value.trim(),
+            date: inputNewMeetingDate.value.trim()
+        };
+        const resp = await fetch('/api/timeline/create-meeting', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+        const res = await resp.json();
+        if (res.ok) {
+            inputNewMeetingNumber.value = '';
+            inputNewMeetingDate.value = '';
+            await loadData(sourceSelect.value);
+        } else {
+            alert(res.error || 'خطا در افزودن جلسه');
+        }
+    });
+
+    btnToggleMeeting.addEventListener('click', () => {
+        const hidden = meetingForm.classList.contains('hidden');
+        if (hidden) {
+            meetingForm.classList.remove('hidden');
+            btnToggleMeeting.textContent = 'پنهان کردن فرم';
+        } else {
+            meetingForm.classList.add('hidden');
+            btnToggleMeeting.textContent = 'نمایش فرم';
+        }
+    });
+
+    function populateMeetingSelect(selectedId=null) {
+        if (!selectResMeeting) return;
+        selectResMeeting.innerHTML = '';
+        currentData.forEach(m => {
+            const opt = document.createElement('option');
+            const num = (m.number && m.number !== '') ? `جلسه ${m.number}` : '';
+            opt.value = m.id;
+            opt.textContent = `${m.date || 'تاریخ نامشخص'}${num ? ' - ' + num : ''}`;
+            selectResMeeting.appendChild(opt);
+        });
+        if (selectedId) {
+            selectResMeeting.value = selectedId;
+        }
+    }
+
+    btnToggleResolutionTop.addEventListener('click', () => {
+        const hidden = resolutionFormTop.classList.contains('hidden');
+        if (hidden) {
+            resolutionFormTop.classList.remove('hidden');
+            btnToggleResolutionTop.textContent = 'پنهان کردن فرم مصوبه';
+        } else {
+            resolutionFormTop.classList.add('hidden');
+            btnToggleResolutionTop.textContent = 'افزودن مصوبه';
+        }
+    });
+
+    btnCreateResolutionTop.addEventListener('click', async () => {
+        const body = {
+            meeting_id: selectResMeeting.value,
+            topic: document.getElementById('resTopicTop').value.trim(),
+            responsible: document.getElementById('resResponsibleTop').value.trim(),
+            status: document.getElementById('resStatusTop').value.trim(),
+            progress: parseInt(document.getElementById('resProgressTop').value || '0'),
+            due_date: document.getElementById('resDueDateTop').value.trim(),
+            description: document.getElementById('resDescriptionTop').value.trim(),
+            letter_number: document.getElementById('resLetterTop').value.trim()
+        };
+        const resp = await fetch('/api/timeline/create-resolution', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+        const res = await resp.json();
+        if (res.ok) {
+            document.getElementById('resTopicTop').value = '';
+            document.getElementById('resResponsibleTop').value = '';
+            document.getElementById('resStatusTop').value = '';
+            document.getElementById('resProgressTop').value = '0';
+            document.getElementById('resDueDateTop').value = '';
+            document.getElementById('resDescriptionTop').value = '';
+            document.getElementById('resLetterTop').value = '';
+            await loadData(sourceSelect.value);
+        } else {
+            alert(res.error || 'خطا در افزودن مصوبه');
+        }
+    });
+
+    // Initial load based on URL param
+    const urlParams = new URLSearchParams(window.location.search);
+    const initialSource = urlParams.get('source') || 'presidency';
+    sourceSelect.value = initialSource;
+    loadData(initialSource);
+
+</script>
+{% endblock %}

@@ -1,0 +1,606 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-header">
+    <h2 class="page-title">داشبورد منابع انسانی</h2>
+    <div class="page-actions">
+        {% if current_user.role == 'admin' %}
+        <form method="post" action="{{ url_for('hr_dashboard.init_data') }}" style="display:inline"
+              onsubmit="return confirm('همه داده‌های کارکنان حذف و از فایل‌ها دوباره بارگذاری می‌شود. ادامه می‌دهید؟');">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <button type="submit" class="btn btn-outline-primary btn-sm me-2">
+                <i class="fas fa-sync me-1"></i>بارگذاری اولیه
+            </button>
+        </form>
+        {% endif %}
+        <button type="button" class="btn btn-primary btn-sm"
+            onclick="document.getElementById('uploadModal').style.display='flex'">
+            <i class="fas fa-upload me-1"></i>آپلود فایل
+        </button>
+    </div>
+</div>
+
+<!-- Upload Modal -->
+<div id="uploadModal" class="modal-overlay" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>آپلود فایل‌های HR</h3>
+            <button type="button" class="modal-close"
+                onclick="document.getElementById('uploadModal').style.display='none'">&times;</button>
+        </div>
+        <form action="{{ url_for('hr_dashboard.import_data') }}" method="post" enctype="multipart/form-data">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <div class="modal-body">
+                <div class="upload-item mb-3">
+                    <label><strong>فایل اطلاعات کارمندان (HR-DATA)</strong></label>
+                    <p class="text-muted small">فرمت CSV یا Excel با ستون‌های: کد پرسنلی، نام، وضعیت تأهل، مقطع تحصیلی،
+                        ...</p>
+                    <input type="file" name="hr_file" accept=".csv,.xlsx,.xls" class="form-control">
+                </div>
+                <div class="upload-item">
+                    <label><strong>فایل ساختار سازمانی (People)</strong></label>
+                    <p class="text-muted small">فرمت Excel با ستون‌های: نام واحد، سمت، نوع قرارداد، ...</p>
+                    <input type="file" name="people_file" accept=".xlsx,.xls" class="form-control">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary"
+                    onclick="document.getElementById('uploadModal').style.display='none'">انصراف</button>
+                <button type="submit" class="btn btn-primary"><i class="fas fa-upload me-1"></i>وارد کردن</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- KPI Cards -->
+<div class="kpi-grid mb-4">
+    <div class="card kpi-card">
+        <div class="card-body text-center">
+            <h4 class="text-muted">کل کارمندان</h4>
+            <h2 class="text-primary">{{ kpis.total }}</h2>
+        </div>
+    </div>
+    <div class="card kpi-card">
+        <div class="card-body text-center">
+            <h4 class="text-muted">مرد</h4>
+            <h2 class="text-info">{{ kpis.male }}</h2>
+        </div>
+    </div>
+    <div class="card kpi-card">
+        <div class="card-body text-center">
+            <h4 class="text-muted">زن</h4>
+            <h2 class="text-success">{{ kpis.female }}</h2>
+        </div>
+    </div>
+    <div class="card kpi-card">
+        <div class="card-body text-center">
+            <h4 class="text-muted">میانگین سن</h4>
+            <h2 class="text-warning">{{ kpis.avg_age }}</h2>
+        </div>
+    </div>
+    <div class="card kpi-card">
+        <div class="card-body text-center">
+            <h4 class="text-muted">واحدها</h4>
+            <h2 class="text-danger">{{ kpis.departments }}</h2>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Row -->
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h3>توزیع جنسیتی</h3>
+            </div>
+            <div class="card-body">
+                <div class="chart-container" style="height: 250px;">
+                    <canvas id="genderChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h3>نوع استخدام</h3>
+            </div>
+            <div class="card-body">
+                <div class="chart-container" style="height: 250px;">
+                    <canvas id="empTypeChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h3>مقطع تحصیلی</h3>
+            </div>
+            <div class="card-body">
+                <div class="chart-container" style="height: 250px;">
+                    <canvas id="educationChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Department Distribution -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h3>توزیع واحدها</h3>
+    </div>
+    <div class="card-body">
+        <div class="chart-container" style="height: 300px;">
+            <canvas id="deptChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h3>فیلتر و جستجو</h3>
+    </div>
+    <div class="card-body">
+        <div class="filter-row">
+            <input type="text" id="searchInput" class="form-control" placeholder="جستجوی نام...">
+            <select id="filterLocation" class="form-control">
+                <option value="">همه مکان‌ها</option>
+                {% for loc in filters.locations %}<option value="{{ loc }}">{{ loc }}</option>{% endfor %}
+            </select>
+            <select id="filterEmpType" class="form-control">
+                <option value="">همه انواع استخدام</option>
+                {% for t in filters.employment_types %}<option value="{{ t }}">{{ t }}</option>{% endfor %}
+            </select>
+            <select id="filterEducation" class="form-control">
+                <option value="">همه مقاطع</option>
+                {% for e in filters.education %}<option value="{{ e }}">{{ e }}</option>{% endfor %}
+            </select>
+            <button type="button" class="btn btn-primary" onclick="loadEmployees()">اعمال فیلتر</button>
+        </div>
+    </div>
+</div>
+
+<!-- Filtered KPI Cards (dynamic) -->
+<div id="filteredKpis" class="kpi-grid filtered-kpis mb-4" style="display: none;">
+    <div class="card kpi-card kpi-filtered">
+        <div class="card-body text-center">
+            <h4 class="text-muted">تعداد فیلتر شده</h4>
+            <h2 class="text-primary" id="filteredTotal">0</h2>
+        </div>
+    </div>
+    <div class="card kpi-card kpi-filtered">
+        <div class="card-body text-center">
+            <h4 class="text-muted">مرد</h4>
+            <h2 class="text-info" id="filteredMale">0</h2>
+        </div>
+    </div>
+    <div class="card kpi-card kpi-filtered">
+        <div class="card-body text-center">
+            <h4 class="text-muted">زن</h4>
+            <h2 class="text-success" id="filteredFemale">0</h2>
+        </div>
+    </div>
+    <div class="card kpi-card kpi-filtered">
+        <div class="card-body text-center">
+            <h4 class="text-muted">میانگین سن</h4>
+            <h2 class="text-warning" id="filteredAvgAge">0</h2>
+        </div>
+    </div>
+    <div class="card kpi-card kpi-filtered">
+        <div class="card-body text-center">
+            <h4 class="text-muted">واحدها</h4>
+            <h2 class="text-danger" id="filteredDepts">0</h2>
+        </div>
+    </div>
+</div>
+
+<!-- Employee Table -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h3>لیست کارمندان</h3>
+    </div>
+    <div class="card-body">
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>نام</th>
+                    <th>سمت</th>
+                    <th>واحد</th>
+                    <th>جنسیت</th>
+                    <th>نوع استخدام</th>
+                </tr>
+            </thead>
+            <tbody id="employeeTable">
+                {% for emp in employees %}
+                <tr>
+                    <td>{{ emp.full_name }}</td>
+                    <td>{{ emp.position or '-' }}</td>
+                    <td>{{ emp.department or '-' }}</td>
+                    <td>{{ emp.gender or '-' }}</td>
+                    <td>{{ emp.employment_type or '-' }}</td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="5" class="text-center text-muted">داده‌ای یافت نشد. ابتدا از دکمه "بارگذاری اولیه"
+                        استفاده کنید.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    (function () {
+        var chartData = {{ chart_data | tojson
+    }};
+
+    // Gender Pie
+    if (Object.keys(chartData.gender).length > 0) {
+        new Chart(document.getElementById('genderChart').getContext('2d'), {
+            type: 'doughnut',
+            data: {
+                labels: Object.keys(chartData.gender),
+                datasets: [{ data: Object.values(chartData.gender), backgroundColor: ['#3b82f6', '#ec4899'], borderWidth: 0 }]
+            },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+        });
+    }
+
+    // Employment Type Bar
+    if (Object.keys(chartData.employment_type).length > 0) {
+        new Chart(document.getElementById('empTypeChart').getContext('2d'), {
+            type: 'bar',
+            data: {
+                labels: Object.keys(chartData.employment_type),
+                datasets: [{ data: Object.values(chartData.employment_type), backgroundColor: '#10b981', borderRadius: 4 }]
+            },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+        });
+    }
+
+    // Education Pie
+    if (Object.keys(chartData.education).length > 0) {
+        new Chart(document.getElementById('educationChart').getContext('2d'), {
+            type: 'doughnut',
+            data: {
+                labels: Object.keys(chartData.education),
+                datasets: [{ data: Object.values(chartData.education), backgroundColor: ['#f59e0b', '#6366f1', '#14b8a6', '#ef4444', '#8b5cf6', '#06b6d4'], borderWidth: 0 }]
+            },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+        });
+    }
+
+    // Department Bar
+    if (Object.keys(chartData.department).length > 0) {
+        new Chart(document.getElementById('deptChart').getContext('2d'), {
+            type: 'bar',
+            data: {
+                labels: Object.keys(chartData.department),
+                datasets: [{ label: 'تعداد', data: Object.values(chartData.department), backgroundColor: '#4318FF', borderRadius: 4 }]
+            },
+            options: { responsive: true, maintainAspectRatio: false, indexAxis: 'y', plugins: { legend: { display: false } } }
+        });
+    }
+}) ();
+
+    function loadEmployees() {
+        var params = new URLSearchParams();
+        var search = document.getElementById('searchInput').value;
+        var location = document.getElementById('filterLocation').value;
+        var empType = document.getElementById('filterEmpType').value;
+        var education = document.getElementById('filterEducation').value;
+        if (search) params.append('search', search);
+        if (location) params.append('location', location);
+        if (empType) params.append('employment_type', empType);
+        if (education) params.append('education', education);
+
+        fetch('/hr/api/employees?' + params.toString())
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                // Update filtered KPIs
+                document.getElementById('filteredTotal').textContent = data.kpis.total;
+                document.getElementById('filteredMale').textContent = data.kpis.male;
+                document.getElementById('filteredFemale').textContent = data.kpis.female;
+                document.getElementById('filteredAvgAge').textContent = data.kpis.avg_age;
+                document.getElementById('filteredDepts').textContent = data.kpis.departments;
+                document.getElementById('filteredKpis').style.display = 'grid';
+
+                // Update employee table
+                var tbody = document.getElementById('employeeTable');
+                tbody.innerHTML = '';
+                data.employees.forEach(function (e) {
+                    var tr = document.createElement('tr');
+                    tr.innerHTML = '<td>' + e.full_name + '</td><td>' + (e.position || '-') + '</td><td>' + (e.department || '-') + '</td><td>' + (e.gender || '-') + '</td><td>' + (e.employment_type || '-') + '</td>';
+                    tbody.appendChild(tr);
+                });
+                if (data.employees.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">داده‌ای یافت نشد</td></tr>';
+                }
+            });
+    }
+</script>
+
+<style>
+    .kpi-grid {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 1rem;
+    }
+
+    .card {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        border: 1px solid #e5e7eb;
+        overflow: hidden;
+    }
+
+    .card-header {
+        padding: 1rem;
+        border-bottom: 1px solid #f3f4f6;
+        background: #f9fafb;
+    }
+
+    .card-header h3 {
+        margin: 0;
+        font-size: 1rem;
+        color: #374151;
+    }
+
+    .card-body {
+        padding: 1rem;
+    }
+
+    .kpi-card h4 {
+        margin: 0 0 0.5rem;
+        font-size: 0.85rem;
+    }
+
+    .kpi-card h2 {
+        margin: 0;
+        font-size: 1.75rem;
+    }
+
+    .filtered-kpis {
+        background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+        padding: 1rem;
+        border-radius: 12px;
+        border: 2px solid #3b82f6;
+    }
+
+    .kpi-filtered {
+        background: white !important;
+        border: 1px solid #93c5fd !important;
+    }
+
+    .row {
+        display: flex;
+        flex-direction: row;
+        flex-wrap: nowrap;
+        gap: 1rem;
+    }
+
+    .col-md-4 {
+        flex: 1 1 33.333%;
+        min-width: 250px;
+    }
+
+    .filter-row {
+        display: flex;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+
+    .filter-row input,
+    .filter-row select {
+        flex: 1;
+        min-width: 150px;
+    }
+
+    .table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .table th,
+    .table td {
+        padding: 0.75rem;
+        text-align: right;
+        border-bottom: 1px solid #e5e7eb;
+    }
+
+    .table th {
+        background: #f9fafb;
+        font-weight: 600;
+    }
+
+    .table-striped tr:nth-child(even) {
+        background: #f9fafb;
+    }
+
+    .modal-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+    }
+
+    .modal-content {
+        background: white;
+        border-radius: 12px;
+        width: 90%;
+        max-width: 500px;
+        overflow: hidden;
+    }
+
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid #e5e7eb;
+        background: #f9fafb;
+    }
+
+    .modal-header h3 {
+        margin: 0;
+        font-size: 1.25rem;
+    }
+
+    .modal-close {
+        background: none;
+        border: none;
+        font-size: 1.5rem;
+        cursor: pointer;
+    }
+
+    .modal-body {
+        padding: 1.5rem;
+    }
+
+    .modal-footer {
+        padding: 1rem 1.5rem;
+        border-top: 1px solid #e5e7eb;
+        display: flex;
+        justify-content: flex-end;
+        gap: 0.75rem;
+    }
+
+    .upload-item {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .form-control {
+        padding: 0.5rem;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+    }
+
+    .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.5rem;
+    }
+
+    .page-title {
+        margin: 0;
+        font-size: 1.5rem;
+        font-weight: 600;
+    }
+
+    .btn {
+        padding: 0.5rem 1rem;
+        border-radius: 6px;
+        border: none;
+        cursor: pointer;
+        font-weight: 500;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+    }
+
+    .btn-primary {
+        background: #3b82f6;
+        color: white;
+    }
+
+    .btn-secondary {
+        background: #6b7280;
+        color: white;
+    }
+
+    .btn-outline-primary {
+        background: transparent;
+        color: #3b82f6;
+        border: 1px solid #3b82f6;
+    }
+
+    .btn-sm {
+        padding: 0.375rem 0.75rem;
+        font-size: 0.875rem;
+    }
+
+    .text-muted {
+        color: #6b7280;
+    }
+
+    .text-primary {
+        color: #3b82f6;
+    }
+
+    .text-info {
+        color: #06b6d4;
+    }
+
+    .text-success {
+        color: #10b981;
+    }
+
+    .text-warning {
+        color: #f59e0b;
+    }
+
+    .text-danger {
+        color: #ef4444;
+    }
+
+    .text-center {
+        text-align: center;
+    }
+
+    .small {
+        font-size: 0.875rem;
+    }
+
+    .mb-3 {
+        margin-bottom: 1rem;
+    }
+
+    .mb-4 {
+        margin-bottom: 1.5rem;
+    }
+
+    .me-1 {
+        margin-left: 0.25rem;
+    }
+
+    .me-2 {
+        margin-left: 0.5rem;
+    }
+
+    .h-100 {
+        height: 100%;
+    }
+
+    @media (max-width: 992px) {
+        .kpi-grid {
+            grid-template-columns: repeat(3, 1fr);
+        }
+
+        .row {
+            flex-wrap: wrap;
+        }
+
+        .col-md-4 {
+            flex: 1 1 100%;
+        }
+    }
+
+    @media (max-width: 576px) {
+        .kpi-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+</style>
+{% endblock %}

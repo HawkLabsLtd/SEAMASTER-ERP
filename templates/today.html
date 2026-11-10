@@ -1,0 +1,322 @@
+{% extends 'base.html' %}
+{% block title %}دستورکار روزانه — امروز{% endblock %}
+
+{% block content %}
+<div class="today-page-container">
+  <!-- Today Hero Banner -->
+  <div class="today-hero-card mb-4">
+    <div class="today-hero-content">
+      <div class="today-hero-icon-box">
+        <i class="fas fa-calendar-check"></i>
+      </div>
+      <div class="today-hero-text">
+        <div class="today-hero-title-row">
+          <h2 class="today-hero-title">امروز — {{ format_jalali_weekday_dm(now_dt) }}</h2>
+          <span class="live-clock-pill"><i class="fas fa-clock me-1"></i> دستورکار روزانه</span>
+        </div>
+        <p class="today-hero-subtitle">نمای یکپارچه رویدادها، سررسید مصوبات، امور اجرایی و جلسات فعال {{ org_name }}</p>
+        
+        <!-- Summary Stats Pills -->
+        <div class="today-stats-pills">
+          <div class="stat-pill pill-events">
+            <i class="fas fa-calendar-day"></i>
+            <span><strong>{{ to_farsi_digits(todays_events|length) }}</strong> رویداد</span>
+          </div>
+          <div class="stat-pill pill-resolutions">
+            <i class="fas fa-file-contract"></i>
+            <span><strong>{{ to_farsi_digits(todays_resolutions|length) }}</strong> سررسید مصوبه</span>
+          </div>
+          <div class="stat-pill pill-tasks">
+            <i class="fas fa-check-circle"></i>
+            <span><strong>{{ to_farsi_digits(todays_operations|length) }}</strong> وظیفه اجرایی</span>
+          </div>
+          <div class="stat-pill pill-meetings">
+            <i class="fas fa-users"></i>
+            <span><strong>{{ to_farsi_digits(todays_meetings|length) }}</strong> جلسه</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="today-hero-actions">
+      <a href="{{ url_for('main_bp.events_calendar') }}" class="btn btn-hero-action">
+        <i class="fas fa-calendar-alt me-1"></i> تقویم رویدادها
+      </a>
+      <a href="{{ url_for('kanban.board') }}" class="btn btn-hero-action">
+        <i class="fas fa-columns me-1"></i> تابلو وظایف
+      </a>
+    </div>
+  </div>
+
+  <!-- 2x2 Modular Agenda Grid -->
+  <div class="today-grid">
+    <!-- 1. Events Today -->
+    <div class="card agenda-card">
+      <div class="agenda-card-header">
+        <div class="agenda-header-title-box">
+          <div class="agenda-icon-wrapper icon-events">
+            <i class="fas fa-calendar-day"></i>
+          </div>
+          <div>
+            <h3 class="agenda-card-title">رویدادهای امروز</h3>
+            <span class="agenda-card-sub">برنامه‌ها و گردهمایی‌های روزانه</span>
+          </div>
+        </div>
+        <span class="agenda-counter counter-events">{{ to_farsi_digits(todays_events|length) }}</span>
+      </div>
+
+      <div class="agenda-card-body">
+        {% if todays_events %}
+        <div class="agenda-items-list">
+          {% for ev in todays_events %}
+          <div class="event-card-item">
+            <div class="event-card-header">
+              <span class="event-card-title">{{ ev.title }}</span>
+              <span class="event-time-badge">
+                <i class="far fa-clock me-1"></i> {{ format_jalali_datetime(ev.start) }}
+              </span>
+            </div>
+            <div class="event-card-chips">
+              {% if ev.location %}
+              <span class="chip chip-location"><i class="fas fa-map-marker-alt me-1"></i> {{ ev.location }}</span>
+              {% endif %}
+              {% if ev.attendees %}
+              <span class="chip chip-attendees"><i class="fas fa-users me-1"></i> {{ to_farsi_digits(ev.attendees) }} نفر</span>
+              {% endif %}
+              {% if ev.responsible %}
+              <span class="chip chip-responsible"><i class="fas fa-user-tie me-1"></i> {{ ev.responsible }}</span>
+              {% endif %}
+              {% if ev.status %}
+              <span class="chip chip-status"><i class="fas fa-tag me-1"></i> {{ ev.status }}</span>
+              {% endif %}
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div class="agenda-empty-state">
+          <div class="empty-icon-circle empty-blue">
+            <i class="fas fa-calendar-day"></i>
+          </div>
+          <p class="empty-title">رویدادی برای امروز ثبت نشده است</p>
+          <span class="empty-hint">از بخش تقویم می‌توانید رویدادهای آینده را مشاهده کنید</span>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- 2. Resolutions Due Today -->
+    <div class="card agenda-card">
+      <div class="agenda-card-header">
+        <div class="agenda-header-title-box">
+          <div class="agenda-icon-wrapper icon-resolutions">
+            <i class="fas fa-gavel"></i>
+          </div>
+          <div>
+            <h3 class="agenda-card-title">سررسید مصوبات امروز</h3>
+            <span class="agenda-card-sub">مصوبات با موعد پایان امروز</span>
+          </div>
+        </div>
+        <span class="agenda-counter counter-resolutions">{{ to_farsi_digits(todays_resolutions|length) }}</span>
+      </div>
+
+      <div class="agenda-card-body">
+        {% if todays_resolutions %}
+        <div class="agenda-items-list">
+          {% for r in todays_resolutions %}
+          <div class="resolution-card-item">
+            <div class="res-item-main">
+              <div class="res-item-title">{{ r.title }}</div>
+              <div class="res-item-meta">
+                <span class="res-meeting-link">
+                  <i class="fas fa-link me-1"></i> جلسه: <a href="{{ url_for('meetings_bp.meeting_detail', meeting_id=r.meeting_id) }}">{{ r.meeting.title }}</a>
+                </span>
+                {% if r.assigned_to %}
+                <span class="res-assignee"><i class="fas fa-user me-1"></i> {{ r.assigned_to.name }}</span>
+                {% endif %}
+              </div>
+            </div>
+            <div class="res-item-status">
+              <span class="badge status-{{ r.status }}">{{ status_label_fa(r.status) }}</span>
+              <span class="res-progress-text">{{ to_farsi_digits(r.progress) }}%</span>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div class="agenda-empty-state">
+          <div class="empty-icon-circle empty-amber">
+            <i class="fas fa-clipboard-check"></i>
+          </div>
+          <p class="empty-title">امروز سررسید مصوبه‌ای وجود ندارد</p>
+          <span class="empty-hint">تمامی مصوبات تا این لحظه تعیین تکلیف شده‌اند</span>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- 3. Operational Tasks Today -->
+    <div class="card agenda-card">
+      <div class="agenda-card-header">
+        <div class="agenda-header-title-box">
+          <div class="agenda-icon-wrapper icon-tasks">
+            <i class="fas fa-tasks"></i>
+          </div>
+          <div>
+            <h3 class="agenda-card-title">امور اجرایی امروز</h3>
+            <span class="agenda-card-sub">پیگیری فعالیت‌های روزمره و عملیاتی</span>
+          </div>
+        </div>
+        <span class="agenda-counter counter-tasks">{{ to_farsi_digits(todays_operations|length) }}</span>
+      </div>
+
+      <div class="agenda-card-body">
+        {% if todays_operations %}
+        <div class="agenda-items-list">
+          {% for op in todays_operations %}
+          <div class="task-card-item {% if op.status == 'completed' %}task-done{% endif %}" id="task-card-{{ op.id }}">
+            <form method="post" action="{{ url_for('tasks.toggle', id=op.id) }}" class="task-check-form" onsubmit="return handleTodayTaskToggle(event, {{ op.id }})">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+              <button type="submit" id="task-btn-{{ op.id }}" class="task-check-btn {% if op.status == 'completed' %}completed{% endif %}" title="تغییر وضعیت انجام">
+                {% if op.status == 'completed' %}
+                <i class="fas fa-check"></i>
+                {% endif %}
+              </button>
+            </form>
+            <div class="task-item-content">
+              <div class="task-item-title" id="task-title-{{ op.id }}">{{ op.title | e }}</div>
+              <div class="task-item-meta">
+                {% if op.assigned_to %}
+                <span class="task-assignee"><i class="fas fa-user-check me-1"></i> مسئول: {{ op.assigned_to.name }}</span>
+                {% endif %}
+                <span id="task-pill-{{ op.id }}" class="task-status-pill badge {% if op.status == 'completed' %}badge-success{% else %}badge-warning{% endif %}">
+                  {{ 'تکمیل شده' if op.status == 'completed' else 'در جریان' }}
+                </span>
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div class="agenda-empty-state">
+          <div class="empty-icon-circle empty-emerald">
+            <i class="fas fa-check-double"></i>
+          </div>
+          <p class="empty-title">برای امروز کار اجرایی معوقی ثبت نشده است</p>
+          <span class="empty-hint">امور جاری در تابلو پیگیری در دسترس هستند</span>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- 4. Meetings Today -->
+    <div class="card agenda-card">
+      <div class="agenda-card-header">
+        <div class="agenda-header-title-box">
+          <div class="agenda-icon-wrapper icon-meetings">
+            <i class="fas fa-users"></i>
+          </div>
+          <div>
+            <h3 class="agenda-card-title">جلسات امروز</h3>
+            <span class="agenda-card-sub">نشست‌ها و جلسات برنامه‌ریزی‌شده</span>
+          </div>
+        </div>
+        <span class="agenda-counter counter-meetings">{{ to_farsi_digits(todays_meetings|length) }}</span>
+      </div>
+
+      <div class="agenda-card-body">
+        {% if todays_meetings %}
+        <div class="agenda-items-list">
+          {% for m in todays_meetings %}
+          <div class="meeting-card-item">
+            <div class="meeting-icon-box">
+              <i class="fas fa-calendar-alt"></i>
+            </div>
+            <div class="meeting-card-main">
+              <a href="{{ url_for('meetings_bp.meeting_detail', meeting_id=m.id) }}" class="meeting-title-link">
+                {{ m.title }}
+              </a>
+              <div class="meeting-card-meta">
+                <span><i class="far fa-clock me-1"></i> ساعت برگزاری: {{ format_jalali_datetime(m.scheduled_at) }}</span>
+                {% if m.resolutions %}
+                <span class="meeting-res-count"><i class="fas fa-file-signature me-1"></i> {{ to_farsi_digits(m.resolutions|length) }} مصوبه</span>
+                {% endif %}
+              </div>
+            </div>
+            <a href="{{ url_for('meetings_bp.meeting_detail', meeting_id=m.id) }}" class="btn btn-sm btn-meeting-view">
+              جزئیات <i class="fas fa-chevron-left ms-1"></i>
+            </a>
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div class="agenda-empty-state">
+          <div class="empty-icon-circle empty-purple">
+            <i class="fas fa-calendar-times"></i>
+          </div>
+          <p class="empty-title">امروز جلسه‌ای برنامه‌ریزی نشده است</p>
+          <span class="empty-hint">از بخش جلسات می‌توانید زمان‌بندی نشست‌های آتی را بررسی کنید</span>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  function handleTodayTaskToggle(e, taskId) {
+    e.preventDefault();
+    var form = e.target;
+    var btn = document.getElementById('task-btn-' + taskId);
+    var card = document.getElementById('task-card-' + taskId);
+    var pill = document.getElementById('task-pill-' + taskId);
+
+    var wasCompleted = card.classList.contains('task-done');
+    var isNowCompleted = !wasCompleted;
+
+    // Optimistic UI updates
+    card.classList.toggle('task-done', isNowCompleted);
+    btn.classList.toggle('completed', isNowCompleted);
+    btn.innerHTML = isNowCompleted ? '<i class="fas fa-check"></i>' : '';
+    if (pill) {
+      pill.className = 'task-status-pill badge ' + (isNowCompleted ? 'badge-success' : 'badge-warning');
+      pill.textContent = isNowCompleted ? 'تکمیل شده' : 'در جریان';
+    }
+
+    var formData = new FormData(form);
+
+    fetch(form.action, {
+      method: 'POST',
+      body: formData,
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest',
+        'Accept': 'application/json'
+      }
+    })
+    .then(function(res) {
+      if (!res.ok) throw new Error('خطا در تغییر وضعیت');
+      return res.json();
+    })
+    .then(function(data) {
+      if (typeof showToast === 'function') {
+        showToast(isNowCompleted ? 'وظیفه به «تکمیل شده» تغییر یافت ✓' : 'وظیفه در وضعیت «در جریان» قرار گرفت.', 'success');
+      }
+    })
+    .catch(function(err) {
+      // Revert UI on failure
+      card.classList.toggle('task-done', wasCompleted);
+      btn.classList.toggle('completed', wasCompleted);
+      btn.innerHTML = wasCompleted ? '<i class="fas fa-check"></i>' : '';
+      if (pill) {
+        pill.className = 'task-status-pill badge ' + (wasCompleted ? 'badge-success' : 'badge-warning');
+        pill.textContent = wasCompleted ? 'تکمیل شده' : 'در جریان';
+      }
+      if (typeof showToast === 'function') {
+        showToast('خطا در ثبت وضعیت وظیفه', 'error');
+      }
+    });
+
+    return false;
+  }
+</script>
+{% endblock %}

@@ -1,0 +1,81 @@
+{% extends 'base.html' %}
+{% block title %}رویدادها{% endblock %}
+{% block content %}
+<style>
+  .agenda{direction:rtl;font-family:yekan,tahoma,sans-serif}
+  .top{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+  .title{font-weight:700;font-size:22px;color:#111827}
+  .navbtns{display:flex;gap:8px}
+  .btn{display:inline-block;padding:6px 12px;border:1px solid #e5e7eb;border-radius:999px;font-size:13px;color:#374151;text-decoration:none;background:#fff}
+  .btn:hover{background:#f9fafb}
+  .chips{display:flex;gap:8px;flex-wrap:wrap}
+  .chip{padding:6px 12px;border:1px solid #e5e7eb;border-radius:999px;font-size:13px;color:#374151;text-decoration:none;background:#fff}
+  .chip.active{background:#eef2ff;border-color:#c7d2fe;color:#3730a3}
+  .day{margin:16px 0;border-top:1px solid #e5e7eb;padding-top:12px}
+  .daytitle{font-weight:700;color:#111827;margin-bottom:8px;font-size:16px}
+  .item{margin-bottom:10px;background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:12px}
+  .meta{margin-top:6px;display:flex;flex-wrap:wrap;gap:6px}
+  .badge{padding:3px 10px;border-radius:999px;font-size:12px;border:1px solid #e5e7eb}
+  .btn-calendar{display:inline-block;padding:6px 12px;border-radius:9999px;font-size:12px;font-weight:600;color:#ffffff;background:#2563eb;border:1px solid #1d4ed8;text-decoration:none;box-shadow:0 1px 2px rgba(0,0,0,0.08)}
+  .btn-calendar:hover{background:#1d4ed8;border-color:#1e40af}
+  .btn-calendar:active{transform:translateY(1px)}
+  .empty{margin-top:12px;color:#6b7280}
+</style>
+<div class="agenda">
+  <div class="top">
+    <div class="title">{{ month_title }}</div>
+    <div class="navbtns">
+      <a class="btn" href="{{ url_for('main_bp.events_calendar', year=prev_year, month=prev_month, hide_past=1 if hide_past else None, dow=active_dow if active_dow is not none else None) }}">ماه قبل</a>
+      <a class="btn" href="{{ url_for('main_bp.events_calendar', year=next_year, month=next_month, hide_past=1 if hide_past else None, dow=active_dow if active_dow is not none else None) }}">ماه بعد</a>
+      <form style="display:inline-block" action="{{ url_for('main_bp.events_upload') }}" method="post" enctype="multipart/form-data">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <input type="hidden" name="year" value="{{ year }}">
+        <input type="hidden" name="month" value="{{ month }}">
+        <label class="btn" style="cursor:pointer">
+          بارگذاری CSV
+          <input type="file" name="csv_file" accept=".csv" style="display:none" onchange="this.form.submit()">
+        </label>
+      </form>
+    </div>
+  </div>
+  <div class="chips">
+    {% for wd in weekdays_fa %}
+      <a href="{{ url_for('main_bp.events_calendar', year=year, month=month, dow=loop.index0, hide_past=1 if hide_past else None) }}" class="chip {% if active_dow is not none and active_dow == loop.index0 %}active{% endif %}">{{ wd }}</a>
+    {% endfor %}
+    {% if active_dow is not none %}
+      <a href="{{ url_for('main_bp.events_calendar', year=year, month=month, hide_past=1 if hide_past else None) }}" class="chip">نمایش همه روزها</a>
+    {% endif %}
+    {% if hide_past %}
+      <a href="{{ url_for('main_bp.events_calendar', year=year, month=month, dow=active_dow if active_dow is not none else None) }}" class="chip">نمایش گذشته</a>
+    {% else %}
+      <a href="{{ url_for('main_bp.events_calendar', year=year, month=month, dow=active_dow if active_dow is not none else None, hide_past=1) }}" class="chip">مخفی‌کردن گذشته</a>
+    {% endif %}
+  </div>
+
+  {% if events_by_day %}
+    {% for day, items in events_by_day|dictsort %}
+      <section class="day">
+        {% set first = items[0] %}
+        <div class="daytitle">{{ format_jalali_weekday_dm(first.start) }}</div>
+        {% for ev in items %}
+          <div class="item">
+            <div>{{ ev.title }}</div>
+            <div>🕒 {{ format_jalali_datetime(ev.start) }} ← {{ format_jalali_datetime(ev.end) }}</div>
+            <div class="meta">
+              {% if ev.location %}<span class="badge">📍 {{ ev.location }}</span>{% endif %}
+              {% if ev.meet_link %}<a href="{{ ev.meet_link }}" target="_blank" rel="noopener" class="badge">🔗 لینک جلسه</a>{% endif %}
+              {% if ev.calendar_link %}<a href="{{ ev.calendar_link }}" target="_blank" rel="noopener" class="btn-calendar">🗓 افزودن به تقویم</a>{% endif %}
+              {% if ev.attendees %}<span class="badge">👥 {{ to_farsi_digits(ev.attendees) }}</span>{% endif %}
+              {% if ev.responsible %}<span class="badge">👤 {{ ev.responsible }}</span>{% endif %}
+              {% if ev.status %}<span class="badge">🏷 {{ ev.status }}</span>{% endif %}
+              {% if ev.catering %}<span class="badge">☕️ {{ ev.catering }}</span>{% endif %}
+            </div>
+          </div>
+        {% endfor %}
+      </section>
+    {% endfor %}
+  {% else %}
+    <div class="empty">رویدادی برای این روز یافت نشد.</div>
+  {% endif %}
+</div>
+{% endblock %}

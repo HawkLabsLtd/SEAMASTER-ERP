@@ -1,0 +1,70 @@
+{% extends 'base.html' %}
+{% block title %}ورود به {{ app_title }}{% endblock %}
+
+{% block content %}
+<div style="min-height: calc(100vh - 220px); display: flex; align-items: center; justify-content: center; padding: 2rem 1rem;">
+  <div style="max-width: 440px; width: 100%; background: #ffffff; border-radius: 16px; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.04); border: 1px solid #e2e8f0; overflow: hidden;">
+    
+    <!-- Card Header with Brand Gradient -->
+    <div style="background: linear-gradient(135deg, #1e3a8a 0%, #0f172a 100%); color: #ffffff; padding: 2rem 1.5rem; text-align: center;">
+      <div style="width: 56px; height: 56px; background: rgba(255, 255, 255, 0.1); border-radius: 14px; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 0.75rem; border: 1px solid rgba(255, 255, 255, 0.2);">
+        <i class="fas fa-shield-alt" style="font-size: 26px; color: #60a5fa;"></i>
+      </div>
+      <h3 style="font-size: 1.25rem; font-weight: 800; margin-bottom: 0.25rem; font-family: 'Vazirmatn', sans-serif;">ورود به سامانه جامع</h3>
+      <p style="font-size: 0.8rem; color: #94a3b8; margin: 0;">{{ app_title }} {{ org_name }}</p>
+    </div>
+
+    <!-- Card Body Form -->
+    <div style="padding: 2rem 1.75rem;">
+      <form method="post" action="{{ url_for('auth_bp.login', next=next_url) }}" style="display: flex; flex-direction: column; gap: 1.25rem;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <input type="hidden" name="next" value="{{ next_url }}">
+
+        <div>
+          <label for="email" style="display: block; font-size: 0.85rem; font-weight: 700; color: #334155; margin-bottom: 0.5rem;">
+            <i class="fas fa-user text-primary me-1" style="color: #2563eb;"></i> ایمیل یا نام کاربری
+          </label>
+          <div style="position: relative;">
+            <input type="text" id="email" name="email" required autofocus
+              placeholder="نام کاربری یا ایمیل خود را وارد کنید"
+              style="width: 100%; padding: 0.75rem 1rem; border: 1.5px solid #cbd5e1; border-radius: 10px; font-size: 0.9rem; transition: all 0.2s; outline: none; box-sizing: border-box; background: #f8fafc;"
+              onfocus="this.style.borderColor='#2563eb'; this.style.background='#ffffff'; this.style.boxShadow='0 0 0 3px rgba(37, 99, 235, 0.1)';"
+              onblur="this.style.borderColor='#cbd5e1'; this.style.background='#f8fafc'; this.style.boxShadow='none';">
+          </div>
+        </div>
+
+        <div>
+          <label for="password" style="display: block; font-size: 0.85rem; font-weight: 700; color: #334155; margin-bottom: 0.5rem;">
+            <i class="fas fa-key text-primary me-1" style="color: #2563eb;"></i> رمز عبور
+          </label>
+          <div style="position: relative;">
+            <input type="password" id="password" name="password" required
+              placeholder="رمز عبور خود را وارد کنید"
+              style="width: 100%; padding: 0.75rem 1rem; border: 1.5px solid #cbd5e1; border-radius: 10px; font-size: 0.9rem; transition: all 0.2s; outline: none; box-sizing: border-box; background: #f8fafc;"
+              onfocus="this.style.borderColor='#2563eb'; this.style.background='#ffffff'; this.style.boxShadow='0 0 0 3px rgba(37, 99, 235, 0.1)';"
+              onblur="this.style.borderColor='#cbd5e1'; this.style.background='#f8fafc'; this.style.boxShadow='none';">
+          </div>
+        </div>
+
+        <div style="margin-top: 0.5rem;">
+          <button type="submit" 
+            style="width: 100%; padding: 0.85rem; background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); color: #ffffff; border: none; border-radius: 10px; font-size: 0.95rem; font-weight: 800; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2), 0 2px 4px -2px rgba(37, 99, 235, 0.2);"
+            onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 6px 12px -2px rgba(37, 99, 235, 0.3)';"
+            onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 6px -1px rgba(37, 99, 235, 0.2)';"
+            onmousedown="this.style.transform='translateY(1px)';">
+            <i class="fas fa-sign-in-alt me-1"></i> ورود به سیستم
+          </button>
+        </div>
+
+        {% if config.ALLOW_SELF_REGISTRATION %}
+        <div style="text-align: center; border-top: 1px solid #f1f5f9; padding-top: 1rem; font-size: 0.8rem; color: #64748b;">
+          حساب کاربری ندارید؟
+          <a href="{{ url_for('auth_bp.register') }}" style="color: #2563eb; font-weight: 700; text-decoration: none; margin-right: 4px;">ثبت‌نام کاربر جدید</a>
+        </div>
+        {% endif %}
+      </form>
+    </div>
+
+  </div>
+</div>
+{% endblock %}

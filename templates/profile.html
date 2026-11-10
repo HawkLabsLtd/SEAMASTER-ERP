@@ -1,0 +1,164 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="profile-container">
+  <!-- Profile Hero Header -->
+  <div class="profile-hero-card mb-4">
+    <div class="profile-hero-body">
+      <div class="profile-avatar">
+        <i class="fas fa-user-tie"></i>
+      </div>
+      <div class="profile-hero-info">
+        <div class="d-flex align-items-center gap-3 flex-wrap">
+          <h2 class="profile-hero-name">{{ user.name }}</h2>
+          {% if user.role == 'admin' %}
+          <span class="badge badge-admin"><i class="fas fa-crown me-1"></i> مدیر سیستم (Admin)</span>
+          {% elif user.role == 'manager' %}
+          <span class="badge badge-manager"><i class="fas fa-user-shield me-1"></i> مدیر ارشد (Manager)</span>
+          {% else %}
+          <span class="badge badge-staff"><i class="fas fa-user me-1"></i> کارشناس (Staff)</span>
+          {% endif %}
+          <span class="badge badge-status-active"><i class="fas fa-check-circle me-1"></i> حساب فعال</span>
+        </div>
+        <div class="profile-hero-meta">
+          <span class="meta-item"><i class="fas fa-envelope"></i> {{ user.email or 'بدون ایمیل ثبت شده' }}</span>
+          {% if user.username %}
+          <span class="meta-item"><i class="fas fa-at"></i> {{ user.username }}</span>
+          {% endif %}
+          <span class="meta-item"><i class="fas fa-building"></i> {{ org_name }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Profile Grid: 2 Cards -->
+  <div class="profile-grid">
+    <!-- Card 1: Personal Details -->
+    <div class="card profile-card">
+      <div class="card-header-styled">
+        <div class="card-header-icon bg-primary-soft">
+          <i class="fas fa-user-edit text-primary"></i>
+        </div>
+        <div>
+          <h3 class="card-header-title">ویرایش مشخصات فردی</h3>
+          <p class="card-header-subtitle">مشخصات هویتی و اطلاعات تماس حساب کاربری</p>
+        </div>
+      </div>
+      
+      <div class="card-body-styled">
+        <form method="post" action="{{ url_for('auth_bp.profile') }}">
+          <div class="form-field-group">
+            <label for="name" class="form-field-label">نام و نام خانوادگی <span class="text-danger">*</span></label>
+            <div class="input-icon-wrapper">
+              <i class="fas fa-user input-icon"></i>
+              <input type="text" class="form-input" id="name" name="name" value="{{ user.name }}" required placeholder="نام کامل خود را وارد کنید">
+            </div>
+          </div>
+
+          <div class="form-field-group">
+            <label for="email" class="form-field-label">آدرس ایمیل سازمانی</label>
+            <div class="input-icon-wrapper">
+              <i class="fas fa-envelope input-icon"></i>
+              <input type="email" class="form-input" id="email" name="email" value="{{ user.email or '' }}" placeholder="example@example.com" style="direction: ltr; text-align: left;">
+            </div>
+          </div>
+
+          <div class="form-field-group">
+            <label class="form-field-label">نقش سازمانی</label>
+            <div class="input-icon-wrapper">
+              <i class="fas fa-id-badge input-icon"></i>
+              <input type="text" class="form-input form-input-readonly" value="{% if user.role == 'admin' %}مدیر سیستم (دسترسی کامل){% elif user.role == 'manager' %}مدیر ارشد{% else %}کارشناس{% endif %}" readonly>
+            </div>
+            <small class="form-help-text">نقش کاربری فقط توسط مدیر سیستم قابل تغییر است.</small>
+          </div>
+
+          <div class="form-actions mt-4">
+            <button type="submit" class="btn btn-save-profile">
+              <i class="fas fa-check-circle me-2"></i> ذخیره تغییرات مشخصات
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Card 2: Security & Password -->
+    <div class="card profile-card">
+      <div class="card-header-styled">
+        <div class="card-header-icon bg-warning-soft">
+          <i class="fas fa-shield-alt text-warning"></i>
+        </div>
+        <div>
+          <h3 class="card-header-title">امنیت و تغییر رمز عبور</h3>
+          <p class="card-header-subtitle">تنظیم رمز عبور جدید برای افزایش امنیت حساب</p>
+        </div>
+      </div>
+
+      <div class="card-body-styled">
+        <form method="post" action="{{ url_for('auth_bp.change_password') }}">
+          <div class="form-field-group">
+            <label for="current_password" class="form-field-label">رمز عبور فعلی <span class="text-danger">*</span></label>
+            <div class="input-icon-wrapper">
+              <i class="fas fa-lock input-icon"></i>
+              <input type="password" class="form-input" id="current_password" name="current_password" required placeholder="رمز عبور فعلی خود را وارد کنید" style="direction: ltr; text-align: left;">
+              <button type="button" class="btn-toggle-pwd" onclick="togglePasswordVisibility('current_password', this)">
+                <i class="fas fa-eye"></i>
+              </button>
+            </div>
+          </div>
+
+          <div class="form-field-group">
+            <label for="new_password" class="form-field-label">رمز عبور جدید <span class="text-danger">*</span></label>
+            <div class="input-icon-wrapper">
+              <i class="fas fa-key input-icon"></i>
+              <input type="password" class="form-input" id="new_password" name="new_password" required placeholder="حداقل ۶ کاراکتر" style="direction: ltr; text-align: left;">
+              <button type="button" class="btn-toggle-pwd" onclick="togglePasswordVisibility('new_password', this)">
+                <i class="fas fa-eye"></i>
+              </button>
+            </div>
+          </div>
+
+          <div class="form-field-group">
+            <label for="confirm_password" class="form-field-label">تکرار رمز عبور جدید <span class="text-danger">*</span></label>
+            <div class="input-icon-wrapper">
+              <i class="fas fa-shield-check input-icon"></i>
+              <input type="password" class="form-input" id="confirm_password" name="confirm_password" required placeholder="تکرار رمز عبور جدید" style="direction: ltr; text-align: left;">
+              <button type="button" class="btn-toggle-pwd" onclick="togglePasswordVisibility('confirm_password', this)">
+                <i class="fas fa-eye"></i>
+              </button>
+            </div>
+          </div>
+
+          <div class="password-guidelines-box">
+            <div class="guidelines-title"><i class="fas fa-info-circle me-1"></i> راهنمای انتخاب رمز عبور:</div>
+            <ul class="guidelines-list">
+              <li>حداقل طول رمز عبور ۶ کاراکتر باشد.</li>
+              <li>از ترکیب حروف انگلیسی، اعداد و نشانه‌ها استفاده کنید.</li>
+            </ul>
+          </div>
+
+          <div class="form-actions mt-4">
+            <button type="submit" class="btn btn-update-password">
+              <i class="fas fa-lock me-2"></i> به‌روزرسانی رمز عبور
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function togglePasswordVisibility(fieldId, btn) {
+  const input = document.getElementById(fieldId);
+  const icon = btn.querySelector('i');
+  if (input.type === 'password') {
+    input.type = 'text';
+    icon.classList.remove('fa-eye');
+    icon.classList.add('fa-eye-slash');
+  } else {
+    input.type = 'password';
+    icon.classList.remove('fa-eye-slash');
+    icon.classList.add('fa-eye');
+  }
+}
+</script>
+{% endblock %}

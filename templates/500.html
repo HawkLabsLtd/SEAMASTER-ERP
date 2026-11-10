@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center py-5">
+    <div class="col-md-6 text-center">
+        <h1 class="display-1 fw-bold text-white">500</h1>
+        <h3 class="text-white mb-4">خطای داخلی سرور</h3>
+        <p class="text-white-50 mb-4">متاسفانه مشکلی در سرور رخ داده است. لطفاً دقایقی دیگر تلاش کنید.</p>
+        <a href="{{ url_for('main_bp.index') }}" class="btn btn-primary px-4">
+            <i class="fas fa-home me-2"></i> بازگشت به داشبورد
+        </a>
+    </div>
+</div>
+{% endblock %}

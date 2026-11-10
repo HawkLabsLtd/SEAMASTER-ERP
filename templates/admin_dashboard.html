@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>پنل مدیریت پیشرفته</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin_theme.css') }}">
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+</head>
+
+<body class="admin-body">
+    <div class="admin-container">
+        <aside class="admin-sidebar">
+            <div class="admin-brand">SEAMASTER</div>
+            <nav class="admin-nav">
+                <a href="#" class="active">داشبورد اصلی</a>
+                <a href="{{ url_for('main_bp.index') }}">بازگشت به سایت</a>
+                <a href="{{ url_for('users_bp.user_list') }}">مدیریت کاربران</a>
+                <a href="{{ url_for('meetings_bp.meeting_list') }}">جلسات</a>
+                <a href="{{ url_for('resolutions_bp.resolutions_list') }}">مصوبات</a>
+                <a href="#">تنظیمات سیستم</a>
+            </nav>
+        </aside>
+
+        <main class="admin-main">
+            <header class="admin-header">
+                <h1 class="admin-title">نمای کلی سیستم</h1>
+                <div class="admin-user-profile">
+                    <span>{{ user.name }}</span>
+                    <div class="admin-avatar">{{ user.name[0] }}</div>
+                </div>
+            </header>
+
+            <div class="dashboard-grid">
+                <div class="glass-card">
+                    <div class="card-title">کاربران فعال</div>
+                    <div class="card-value">1,245</div>
+                    <div class="card-trend">+12% نسبت به ماه قبل</div>
+                </div>
+                <div class="glass-card">
+                    <div class="card-title">جلسات برگزار شده</div>
+                    <div class="card-value">84</div>
+                    <div class="card-trend">این ماه</div>
+                </div>
+                <div class="glass-card">
+                    <div class="card-title">مصوبات در جریان</div>
+                    <div class="card-value">32</div>
+                    <div class="card-trend negative">-5% تاخیر</div>
+                </div>
+                <div class="glass-card">
+                    <div class="card-title">وضعیت سرور</div>
+                    <div class="card-value neon-text">99.9%</div>
+                    <div class="card-trend">آپ‌تایم</div>
+                </div>
+            </div>
+
+            <div class="charts-row">
+                <div class="glass-card">
+                    <div class="card-title">روند فعالیت سیستم</div>
+                    <div id="activityChart" class="chart-container"></div>
+                </div>
+                <div class="glass-card">
+                    <div class="card-title">توزیع منابع</div>
+                    <div id="resourceChart" class="chart-container"></div>
+                </div>
+            </div>
+
+            <div class="glass-card" style="margin-top: 2rem;">
+                <div class="card-title">دسترسی سریع به داشبوردها</div>
+                <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+                    <a href="{{ url_for('hr_dashboard.index') }}" class="btn-neon">منابع انسانی</a>
+                    <a href="/dash/budget" class="btn-neon">بودجه</a>
+                    <a href="{{ url_for('performance_bp.index') }}" class="btn-neon">عملکرد</a>
+                    <a href="{{ url_for('email_dashboard.index') }}" class="btn-neon">ایمیل</a>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // Mock Data for Charts
+        const activityTrace = {
+            x: ['شنبه', 'یکشنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنجشنبه', 'جمعه'],
+            y: [10, 15, 13, 17, 22, 18, 12],
+            type: 'scatter',
+            mode: 'lines+markers',
+            line: { color: '#00f3ff', width: 3 },
+            marker: { color: '#ff00ff', size: 8 }
+        };
+
+        const activityLayout = {
+            paper_bgcolor: 'rgba(0,0,0,0)',
+            plot_bgcolor: 'rgba(0,0,0,0)',
+            font: { color: '#a0a0a0', family: 'Vazir' },
+            margin: { t: 20, l: 40, r: 20, b: 40 },
+            xaxis: { showgrid: false },
+            yaxis: { gridcolor: 'rgba(255,255,255,0.1)' }
+        };
+
+        Plotly.newPlot('activityChart', [activityTrace], activityLayout, { displayModeBar: false });
+
+        const resourceTrace = {
+            values: [40, 30, 20, 10],
+            labels: ['CPU', 'Memory', 'Disk', 'Network'],
+            type: 'pie',
+            marker: {
+                colors: ['#00f3ff', '#0066ff', '#ff00ff', '#a0a0a0']
+            },
+            textinfo: 'none'
+        };
+
+        const resourceLayout = {
+            paper_bgcolor: 'rgba(0,0,0,0)',
+            plot_bgcolor: 'rgba(0,0,0,0)',
+            font: { color: '#a0a0a0', family: 'Vazir' },
+            margin: { t: 0, l: 0, r: 0, b: 0 },
+            showlegend: true,
+            legend: { orientation: 'h', y: -0.1 }
+        };
+
+        Plotly.newPlot('resourceChart', [resourceTrace], resourceLayout, { displayModeBar: false });
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,7 @@
+<svg width="173" height="48" viewBox="0 0 173 48" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="SeaMaster">
+  <rect x="2" y="4" width="40" height="40" rx="10" fill="#1e3a8a"/>
+  <path d="M8 30c4 0 4-3 8-3s4 3 8 3 4-3 8-3 4 3 4 3" stroke="#93c5fd" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+  <path d="M8 36c4 0 4-3 8-3s4 3 8 3 4-3 8-3 4 3 4 3" stroke="#60a5fa" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+  <path d="M22 10l8 14H14z" fill="#f8fafc"/>
+  <text x="52" y="32" font-family="Segoe UI, Tahoma, Arial, sans-serif" font-size="20" font-weight="700" fill="#1e3a8a">SeaMaster</text>
+</svg>

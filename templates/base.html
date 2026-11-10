@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="csrf-token" content="{{ csrf_token }}">
+  <script>
+    // Attach the CSRF token to every same-origin, state-changing fetch() so page scripts don't have to.
+    (function () {
+      var token = document.querySelector('meta[name="csrf-token"]').content;
+      var nativeFetch = window.fetch.bind(window);
+      window.fetch = function (input, init) {
+        init = init || {};
+        var method = (init.method || (input && input.method) || 'GET').toUpperCase();
+        var url = new URL(typeof input === 'string' ? input : input.url, window.location.href);
+        if (token && url.origin === window.location.origin && ['GET', 'HEAD', 'OPTIONS'].indexOf(method) === -1) {
+          var headers = new Headers(init.headers || (input && input.headers) || {});
+          if (!headers.has('X-CSRFToken')) headers.set('X-CSRFToken', token);
+          init.headers = headers;
+        }
+        return nativeFetch(input, init);
+      };
+    })();
+  </script>
+  <title>{{ app_title }} {{ org_name }}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800;900&family=Vazir:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/fontawesome.min.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/seamaster.css') }}">
+</head>
+
+<body>
+  <header class="app-header">
+    <div class="header-inner">
+      <div class="brand">
+        <a href="{{ url_for('main_bp.index') }}" class="brand-link">
+          <img src="{{ url_for('static', filename='logo-dark.svg') }}" alt="{{ org_name }}" class="brand-logo">
+          <h1 class="brand-title">{{ app_title }} {{ org_name }}</h1>
+        </a>
+      </div>
+      <nav class="nav">
+        <div class="nav-links">
+          {% if has_perm('dashboard.view') %}
+          <a href="{{ url_for('main_bp.index') }}" class="nav-link">داشبورد</a>
+          {% endif %}
+          {% if has_perm('today.view') %}
+          <a href="{{ url_for('main_bp.today_view') }}" class="nav-link">دستورکار روزانه</a>
+          {% endif %}
+          {% if has_perm('meetings.view') %}
+          <a href="{{ url_for('meetings_bp.meeting_list') }}" class="nav-link">جلسات</a>
+          {% endif %}
+          {% if has_perm('users.manage') or (current_user and current_user.role in ['admin', 'manager']) %}
+          <a href="{{ url_for('users_bp.user_list') }}" class="nav-link">مسئولان اجرایی</a>
+          {% endif %}
+          {% if has_perm('events.view') %}
+          <a href="{{ url_for('main_bp.events_calendar') }}" class="nav-link">رویدادها</a>
+          {% endif %}
+          {% if has_perm('tasks.view') %}
+          <a href="{{ url_for('tasks.dashboard') }}" class="nav-link">وظایف من</a>
+          {% endif %}
+          
+          {% if has_perm('resolutions.view') or has_perm('timeline.view') %}
+          <div class="dropdown">
+            <a href="#" class="nav-link dropdown-toggle">مصوبات <i class="fas fa-chevron-down ms-1" style="font-size: 0.7rem;"></i></a>
+            <div class="dropdown-content">
+              {% if has_perm('resolutions.view') %}
+              <a href="{{ url_for('resolutions_bp.resolutions_list') }}"><i class="fas fa-file-alt me-2"></i> مصوبات داخلی</a>
+              {% endif %}
+              {% if has_perm('timeline.view') %}
+              <a href="{{ url_for('timeline.timeline_page') }}?source=presidency"><i class="fas fa-stream me-2"></i> پیگیری مصوبات هیئت نمایندگان و رئیسه</a>
+              <a href="{{ url_for('timeline.timeline_page') }}?source=managerial"><i class="fas fa-users-cog me-2"></i> مصوبات شورای مدیران</a>
+              {% endif %}
+            </div>
+          </div>
+          {% endif %}
+
+          {% if has_perm('resolutions.view') or has_perm('tasks.view') %}
+          <a href="{{ url_for('kanban.board') }}" class="nav-link">تابلو پیگیری</a>
+          {% endif %}
+          {% if has_perm('projects.view') %}
+          <a href="{{ url_for('projects.index') }}" class="nav-link">پروژه‌ها</a>
+          {% endif %}
+          {% if has_perm('agreements.view') %}
+          <a href="{{ url_for('agreements.index') }}" class="nav-link">تفاهم‌نامه‌ها</a>
+          {% endif %}
+          {% if has_perm('org_chart.view') %}
+          <a href="{{ url_for('org_chart.index') }}" class="nav-link">چارت سازمانی</a>
+          {% endif %}
+          <a href="{{ url_for('energy_dashboard.index') }}" class="nav-link">داشبورد انرژی</a>
+          {% if current_user and current_user.role == 'admin' %}
+          <a href="{{ url_for('admin_bp.dashboard') }}" class="nav-link">پنل مدیریت</a>
+          {% endif %}
+        </div>
+
+        <div class="nav-user-actions">
+          <!-- Notification Bell -->
+          <div class="dropdown">
+            <a href="#" class="nav-link nav-icon-link position-relative" title="اعلان‌ها">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                class="feather feather-bell">
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+              </svg>
+              {% if notifications %}
+              <span class="notification-badge"></span>
+              {% endif %}
+            </a>
+            <div class="dropdown-content dropdown-notifications">
+              {% if notifications %}
+              <div class="px-3 py-2 border-bottom border-secondary bg-dark text-white fw-bold">اعلان‌ها</div>
+              {% for note in notifications %}
+              <a href="{{ note.link }}" class="d-flex align-items-start p-3 border-bottom border-light">
+                <div class="text-{{ note.category }} me-3 mt-1">
+                  <i class="{{ note.icon }}"></i>
+                </div>
+                <div>
+                  <div class="fw-bold text-dark">{{ note.title }}</div>
+                  <div class="text-muted small" style="white-space: normal; line-height: 1.4;">{{ note.message }}</div>
+                </div>
+              </a>
+              {% endfor %}
+              {% else %}
+              <div class="p-3 text-center text-muted">اعلان جدیدی وجود ندارد</div>
+              {% endif %}
+            </div>
+          </div>
+
+          <!-- User Menu -->
+          {% if current_user %}
+          <div class="dropdown">
+            <a href="#" class="nav-link dropdown-toggle user-menu-btn d-flex align-items-center">
+              <i class="fas fa-user-circle me-1" style="font-size: 1.15rem;"></i>
+              <span>{{ current_user.name }}</span>
+            </a>
+            <div class="dropdown-content dropdown-user">
+              <a href="{{ url_for('auth_bp.profile') }}"><i class="fas fa-id-badge me-2"></i> پروفایل من</a>
+              {% if current_user.role == 'admin' %}
+              <a href="{{ url_for('admin_bp.dashboard') }}"><i class="fas fa-cogs me-2"></i> پنل مدیریت</a>
+              {% endif %}
+              <a href="{{ url_for('auth_bp.logout') }}" style="color: #e63946;"><i class="fas fa-sign-out-alt me-2"></i> خروج</a>
+            </div>
+          </div>
+          {% else %}
+          <a href="{{ url_for('auth_bp.login') }}" class="nav-link">ورود</a>
+          {% endif %}
+        </div>
+      </nav>
+    </div>
+  </header>
+
+  <main class="{% block main_class %}container{% endblock %}">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    <div class="flash-area">
+      {% for category, message in messages %}
+      <div class="alert {{ 'alert-' + category }}">{{ message }}</div>
+      {% endfor %}
+    </div>
+    {% endif %}
+    {% endwith %}
+
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="container footer">
+    <small>&copy; {{ now.year }} {{ org_name }}</small>
+  </footer>
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      var cards = document.querySelectorAll('.cards-row .card[data-href]');
+      cards.forEach(function (card) {
+        // Make pointer look clickable
+        card.style.cursor = 'pointer';
+
+        // Click anywhere on the card except interactive elements
+        card.addEventListener('click', function (e) {
+          if (e.target.closest('a, button')) { return; }
+          var href = card.getAttribute('data-href');
+          if (href) { window.location.href = href; }
+        });
+
+        // Keyboard accessibility
+        card.addEventListener('keydown', function (e) {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            var href = card.getAttribute('data-href');
+            if (href) { window.location.href = href; }
+          }
+        });
+      });
+    });
+    (function () {
+      var csrf = "{{ csrf_token }}";
+      if (!csrf) {
+        var match = document.cookie.match(/(?:^|;\s*)csrf_token=([^;]+)/);
+        if (match) csrf = decodeURIComponent(match[1]);
+      }
+      var forms = document.querySelectorAll('form[method="post"], form[method="POST"]');
+      for (var i = 0; i < forms.length; i++) {
+        var existing = forms[i].querySelector('input[name="csrf_token"]');
+        if (!existing) {
+          var input = document.createElement('input');
+          input.type = 'hidden';
+          input.name = 'csrf_token';
+          input.value = csrf || '';
+          forms[i].appendChild(input);
+        } else if (!existing.value && csrf) {
+          existing.value = csrf;
+        }
+      }
+    })();
+
+    // Live client-side table filter utility
+    document.addEventListener('input', function (e) {
+      if (e.target && e.target.matches('[data-table-filter]')) {
+        var targetSelector = e.target.getAttribute('data-table-filter');
+        var query = e.target.value.toLowerCase().trim();
+        var table = document.querySelector(targetSelector);
+        if (!table) return;
+        var rows = table.querySelectorAll('tbody tr');
+        rows.forEach(function (row) {
+          var text = row.textContent.toLowerCase();
+          row.style.display = text.indexOf(query) > -1 ? '' : 'none';
+        });
+      }
+    });
+  </script>
+  <script src="{{ url_for('static', filename='js/seamaster-ajax.js') }}"></script>
+  {% if current_user %}{% include 'components/chat_widget.html' %}{% endif %}
+</body>
+
+</html>

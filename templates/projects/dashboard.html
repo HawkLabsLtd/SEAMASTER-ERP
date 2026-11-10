@@ -1,0 +1,1855 @@
+{% extends 'base.html' %}
+{% block title %}مدیریت جامع پروژه‌ها | {{ project.title if project else 'پروژه‌ها' }}{% endblock %}
+
+{% block content %}
+<div class="dashboard-page-container">
+
+  {% if no_access %}
+  <div class="card p-5 text-center shadow-sm border-0 my-5" style="border-radius: 16px; max-width: 650px; margin: 0 auto;">
+    <div class="mb-3">
+      <div class="d-inline-flex align-items-center justify-content-center rounded-circle" style="width: 70px; height: 70px; background: #fef2f2; color: #dc2626;">
+        <i class="fas fa-lock fs-2"></i>
+      </div>
+    </div>
+    <h5 class="fw-bold text-dark mb-2">عدم تخصیص پروژه برای حساب کاربری شما</h5>
+    <p class="text-muted small mb-4" style="line-height: 1.8;">
+      شما در حال حاضر به هیچ پروژه‌ای در سامانه تخصیص داده نشده‌اید. برای دریافت دسترسی به پروژه‌های مورد نظر، لطفاً با مدیر ارشد سیستم (Sys Admin) هماهنگ فرمایید.
+    </p>
+    <div>
+      <a href="{{ url_for('main_bp.index') }}" class="btn btn-primary btn-sm px-4" style="border-radius: 8px;">
+        <i class="fas fa-home me-1"></i> بازگشت به پیشخوان اصلی
+      </a>
+    </div>
+  </div>
+  {% else %}
+
+  <!-- 1. Top Executive Header & Project Switcher -->
+  <div class="page-header d-flex align-items-center justify-content-between mb-4 flex-wrap gap-3">
+    <div class="d-flex align-items-center gap-3 flex-wrap">
+      <div>
+        <div class="d-flex align-items-center gap-2 mb-2 flex-wrap">
+          <!-- Project Switcher Select -->
+          <select class="form-select form-select-sm fw-bold border-primary shadow-sm" style="border-radius: 8px; font-size: 13px; min-width: 290px; max-width: 440px; background-color: #ffffff; color: #1e3a8a; padding: 6px 12px;" onchange="window.location.href='{{ url_for('projects.index') }}?project_id=' + this.value">
+            <option value="all" {% if is_all_projects %}selected{% endif %}>
+              🌐 همه پروژه‌ها (نمای تجمیعی کل فعالیت‌ها) - {{ to_farsi_digits(all_projects|length) }} پروژه
+            </option>
+            <option disabled>──────────</option>
+            {% for p in all_projects %}
+            <option value="{{ p.id }}" {% if not is_all_projects and p.id == project.id %}selected{% endif %}>
+              📁 {{ p.title }} ({{ to_farsi_digits(p.progress or 0) }}٪)
+            </option>
+            {% endfor %}
+          </select>
+          <span class="badge bg-light text-primary border border-primary px-2 py-1" style="font-size: 11px; border-radius: 6px; font-family: monospace;">{{ project.code }}</span>
+          {% if is_all_projects %}
+          <span class="badge bg-info-subtle text-info border border-info px-2 py-1" style="font-size: 11px; border-radius: 6px;">نمای فراگیر</span>
+          {% endif %}
+        </div>
+        
+        <!-- Date Range & Project Manager -->
+        <div class="text-muted small mb-0 d-flex align-items-center flex-wrap gap-2" style="font-size: 12.5px;">
+          <span><i class="far fa-calendar-alt text-primary me-1"></i> بازه زمانی:</span>
+          <span class="badge bg-light text-dark border font-monospace px-2 py-1" dir="ltr" style="font-size: 11.5px;">{{ to_farsi_digits(project.start_date_shamsi) }}</span>
+          <span class="text-muted fw-bold">الی</span>
+          <span class="badge bg-light text-dark border font-monospace px-2 py-1" dir="ltr" style="font-size: 11.5px;">{{ to_farsi_digits(project.end_date_shamsi) }}</span>
+          <span class="mx-2 text-muted">|</span>
+          <span><i class="fas fa-user-tie text-primary me-1"></i> مدیریت / مسئولین: <strong class="text-dark">{{ project.manager_name or 'کلیه مدیران پروژه' }}</strong></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="d-flex gap-2 align-items-center flex-wrap">
+      <button type="button" class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1" onclick="openNewProjectModal()" style="border-radius: 8px; font-weight: 600;">
+        <i class="fas fa-folder-plus"></i> + پروژه جدید
+      </button>
+      {% if not is_all_projects %}
+      <button type="button" class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1" onclick="openEditProjectModal()" style="border-radius: 8px; font-weight: 600;" title="تنظیمات و ویرایش مشخصات این پروژه">
+        <i class="fas fa-cog"></i> تنظیمات پروژه
+      </button>
+      <button type="button" class="btn btn-sm btn-outline-danger d-inline-flex align-items-center gap-1" onclick="openDeleteProjectModal()" style="border-radius: 8px; font-weight: 600;" title="حذف کامل این پروژه">
+        <i class="fas fa-trash-alt"></i> حذف پروژه
+      </button>
+      {% endif %}
+      <button type="button" class="btn btn-sm btn-primary d-inline-flex align-items-center gap-1 shadow-sm" onclick="openNewTaskModal()" style="border-radius: 8px; font-weight: 700;">
+        <i class="fas fa-plus-circle"></i> + تعریف فعالیت (WBS)
+      </button>
+      <a href="{{ url_for('main_bp.index') }}" class="btn btn-sm btn-secondary" style="border-radius: 8px;">
+        <i class="fas fa-home me-1"></i> داشبورد
+      </a>
+    </div>
+  </div>
+
+  <!-- 2. KPI Cards & Overall Progress -->
+  <div class="pm-kpi-grid mb-4">
+    <!-- Progress Card -->
+    <div>
+      <div class="card agenda-card p-3 h-100 d-flex flex-column justify-content-between shadow-sm" style="background: linear-gradient(135deg, #1e3a8a, #0f172a); color: #fff; border: none; border-radius: 12px;">
+        <div class="d-flex align-items-center justify-content-between mb-1">
+          <span class="text-white-50 small fw-bold"><i class="fas fa-chart-line me-1"></i> {{ 'میانگین پیشرفت کل پروژه‌ها' if is_all_projects else 'درصد کل پیشرفت پروژه' }}</span>
+          <span class="badge bg-success px-2 py-1" id="overall-proj-badge" style="font-size: 11px;">{{ 'تکمیل شده' if (project.progress or 0) >= 100 else 'فعال و در جریان' }}</span>
+        </div>
+        <div class="d-flex align-items-baseline gap-2 my-1">
+          <span class="fw-bold display-6" id="overall-proj-progress" style="font-family: 'Vazirmatn', sans-serif;">{{ to_farsi_digits(project.progress or 0) }}٪</span>
+          <span class="text-white-50 small">{{ 'میانگین وزنی پروژه‌ها' if is_all_projects else 'میانگین پیشرفت فعالیت‌ها' }}</span>
+        </div>
+        <div>
+          <div class="progress" style="height: 8px; background: rgba(255,255,255,0.15); border-radius: 10px;">
+            <div class="progress-bar bg-warning" id="overall-proj-progress-bar" role="progressbar" style="width: {{ project.progress or 0 }}%; border-radius: 10px; transition: width 0.3s ease;"></div>
+          </div>
+          <div class="d-flex justify-content-between text-white-50 small mt-2" style="font-size: 11px;">
+            <span>شروع: <span dir="ltr">{{ to_farsi_digits(project.start_date_shamsi) }}</span></span>
+            <span>تحویل: <span dir="ltr">{{ to_farsi_digits(project.end_date_shamsi) }}</span></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick Stats -->
+    <div>
+      <div class="card agenda-card p-3 h-100 text-center d-flex flex-column justify-content-center shadow-sm" style="border-radius: 12px;">
+        <div class="text-muted small mb-1"><i class="fas fa-list-ol text-primary me-1"></i> کل فعالیت‌ها</div>
+        <div class="fw-bold fs-3 text-dark" id="kpi-total">{{ to_farsi_digits(kpis.total_tasks) }}</div>
+        <div class="small text-muted mt-1" style="font-size: 11px;">{{ 'در تمامی پروژه‌ها' if is_all_projects else 'بسته‌های کاری WBS' }}</div>
+      </div>
+    </div>
+
+    <div>
+      <div class="card agenda-card p-3 h-100 text-center d-flex flex-column justify-content-center shadow-sm border-start border-success border-3" style="border-radius: 12px;">
+        <div class="text-success small mb-1"><i class="fas fa-check-circle me-1"></i> تکمیل شده</div>
+        <div class="fw-bold fs-3 text-success" id="kpi-completed">{{ to_farsi_digits(kpis.completed_tasks) }}</div>
+        <div class="small text-muted mt-1" style="font-size: 11px;">فعالیت ۱۰۰٪</div>
+      </div>
+    </div>
+
+    <div>
+      <div class="card agenda-card p-3 h-100 text-center d-flex flex-column justify-content-center shadow-sm border-start border-primary border-3" style="border-radius: 12px;">
+        <div class="text-primary small mb-1"><i class="fas fa-spinner fa-spin me-1"></i> در حال اجرا</div>
+        <div class="fw-bold fs-3 text-primary" id="kpi-inprogress">{{ to_farsi_digits(kpis.in_progress_tasks) }}</div>
+        <div class="small text-muted mt-1" style="font-size: 11px;">در دست اقدام</div>
+      </div>
+    </div>
+
+    <div>
+      <div class="card agenda-card p-3 h-100 text-center d-flex flex-column justify-content-center shadow-sm border-start border-secondary border-3" style="border-radius: 12px;">
+        <div class="text-secondary small mb-1"><i class="far fa-clock me-1"></i> شروع نشده</div>
+        <div class="fw-bold fs-3 text-secondary" id="kpi-pending">{{ to_farsi_digits(kpis.pending_tasks) }}</div>
+        <div class="small text-muted mt-1" style="font-size: 11px;">در نوبت اقدام</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. Navigation View Switcher (Segmented Control) & Unified Filters -->
+  <div class="d-flex align-items-center justify-content-between mb-3 border-bottom pb-2 flex-wrap gap-2">
+    <div class="pm-tab-switcher">
+      <button class="pm-tab-btn active" id="btn-tab-wbs" onclick="switchPmTab('wbs')">
+        <i class="fas fa-table"></i> جدول شکست کار (WBS)
+      </button>
+      <button class="pm-tab-btn" id="btn-tab-kanban" onclick="switchPmTab('kanban')">
+        <i class="fas fa-columns"></i> تابلوی کانبان (Drag & Drop)
+      </button>
+      <button class="pm-tab-btn" id="btn-tab-gantt" onclick="switchPmTab('gantt')">
+        <i class="fas fa-stream"></i> گانت چارت شمسی (تایم‌لاین)
+      </button>
+    </div>
+
+    <!-- Unified Filters & Sorter -->
+    <div class="d-flex align-items-center gap-2 flex-wrap">
+      <!-- Sort By Dropdown -->
+      <select id="sortBy" class="form-select form-select-sm" style="width: 165px; border-radius: 8px; font-size: 12px; font-weight: 600; color: #1e3a8a; background-color: #f8fafc;" onchange="applySorting()">
+        <option value="wbs">🔄 مرتب‌سازی: کد WBS</option>
+        <option value="assignee">👤 مرتب‌سازی: بر اساس فرد</option>
+        <option value="progress_desc">📈 بیشترین پیشرفت</option>
+        <option value="progress_asc">📉 کمترین پیشرفت</option>
+        {% if is_all_projects %}
+        <option value="project">📁 بر اساس نام پروژه</option>
+        {% endif %}
+        <option value="start_date">📅 تاریخ شروع</option>
+        <option value="end_date">🏁 تاریخ پایان</option>
+      </select>
+
+      <!-- Assignee Filter -->
+      <select id="assigneeFilter" class="form-select form-select-sm" style="width: 160px; border-radius: 8px; font-size: 12px;" onchange="applyAllFilters()">
+        <option value="">👤 همه مسئولین</option>
+        {% for name in kpis.assignee_counts.keys() %}
+        <option value="{{ name }}">{{ name }} ({{ to_farsi_digits(kpis.assignee_counts[name].total) }})</option>
+        {% endfor %}
+      </select>
+
+      <!-- Status Filter -->
+      <select id="statusFilter" class="form-select form-select-sm" style="width: 135px; border-radius: 8px; font-size: 12px;" onchange="applyAllFilters()">
+        <option value="">🔘 همه وضعیت‌ها</option>
+        <option value="pending">⚪ در نوبت اقدام</option>
+        <option value="in_progress">🔵 در حال اجرا</option>
+        <option value="completed">🟢 تکمیل شده</option>
+        <option value="delayed">🔴 دارای تاخیر</option>
+      </select>
+
+      <!-- Search Box -->
+      <input type="text" id="pmSearch" class="form-control form-control-sm" placeholder="🔍 جستجوی فعالیت..." style="width: 160px; border-radius: 8px; font-size: 12px;" oninput="applyAllFilters()">
+    </div>
+  </div>
+
+  <!-- 4. Tab Views -->
+
+  <!-- VIEW 1: WBS Table View -->
+  <div id="view-wbs" class="pm-tab-pane">
+    <div class="card agenda-card shadow-sm border-0" style="border-radius: 12px; overflow: hidden;">
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0" id="wbsTable" style="font-size: 12.5px;">
+          <thead class="bg-light">
+            <tr>
+              <th style="width: 65px;" class="text-center">WBS</th>
+              <th style="width: 30%;">شرح فعالیت و اقدام اجرایی</th>
+              <th style="width: 14%;">مسئول اقدام</th>
+              <th style="width: 14%;">بازه زمانی (شمسی)</th>
+              <th style="width: 23%;">پیشرفت فعالیت (% DONE)</th>
+              <th style="width: 12%;" class="text-center">وضعیت اقدام</th>
+              <th style="width: 7%;" class="text-center">عملیات</th>
+            </tr>
+          </thead>
+          <tbody id="wbsTableBody">
+            {% for t in tasks %}
+            <tr class="task-row wbs-task-row" data-task-id="{{ t.id }}" 
+                data-assignee="{{ t.assignee_name or '' }}" 
+                data-status="{{ t.status }}" 
+                data-title="{{ t.title }}" 
+                data-wbs="{{ t.wbs }}"
+                data-progress="{{ t.progress or 0 }}"
+                data-start="{{ t.start_date_shamsi }}"
+                data-end="{{ t.end_date_shamsi }}"
+                data-project="{{ t.project.title if t.project else '' }}"
+                id="task-row-{{ t.id }}">
+              <!-- WBS Code -->
+              <td class="text-center">
+                <span class="badge bg-light text-primary border font-monospace px-2 py-1 task-wbs-text" style="font-size: 12px; border-radius: 6px;">
+                  {{ t.wbs }}
+                </span>
+              </td>
+
+              <!-- Title & Project Badge -->
+              <td>
+                <div class="fw-bold text-dark mb-0 task-title-text" style="line-height: 1.45;">
+                  {{ t.title }}
+                </div>
+                <div class="d-flex align-items-center gap-2 mt-1 flex-wrap">
+                  {% if is_all_projects and t.project %}
+                  <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-0" style="font-size: 10.5px; border-radius: 4px;">
+                    <i class="fas fa-folder me-1"></i>{{ t.project.title }}
+                  </span>
+                  {% endif %}
+                  {% if t.predecessor %}
+                  <span class="text-muted small task-predecessor-text" style="font-size: 11px;"><i class="fas fa-link me-1 text-secondary"></i> پیش‌نیاز: {{ t.predecessor }}</span>
+                  {% endif %}
+                </div>
+              </td>
+
+              <!-- Assignee -->
+              <td>
+                <div class="d-flex align-items-center gap-2">
+                  <div class="task-avatar-circle" style="width: 28px; height: 28px; border-radius: 50%; background: #e0e7ff; color: #3730a3; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 11.5px; flex-shrink: 0;">
+                    {{ t.assignee_name[0] if t.assignee_name else '؟' }}
+                  </div>
+                  <span class="fw-bold text-dark task-assignee-text">{{ t.assignee_name or 'تعیین نشده' }}</span>
+                </div>
+              </td>
+
+              <!-- Dates & Duration -->
+              <td>
+                <div class="small text-dark font-monospace task-dates-text" style="font-size: 11.5px;">
+                  <span dir="ltr" class="task-start-text">{{ to_farsi_digits(t.start_date_shamsi) }}</span>
+                  <span class="mx-1 text-primary">←</span>
+                  <span dir="ltr" class="task-end-text">{{ to_farsi_digits(t.end_date_shamsi) }}</span>
+                </div>
+                <span class="text-muted small" style="font-size: 11px;">
+                  <i class="far fa-clock text-primary me-1"></i> <span class="task-duration-text">{{ to_farsi_digits(t.duration_days or 0) }}</span> روز کاری
+                </span>
+              </td>
+
+              <!-- Progress Slider & Presets -->
+              <td>
+                <div class="d-flex flex-column gap-1">
+                  <div class="d-flex align-items-center justify-content-between gap-2">
+                    <input type="range" class="pm-slider-track flex-grow-1" min="0" max="100" step="5" value="{{ t.progress or 0 }}" 
+                      id="slider-{{ t.id }}"
+                      oninput="onTaskSliderInput({{ t.id }}, this.value)" 
+                      onchange="saveTaskProgress({{ t.id }}, this.value)">
+                    <span class="badge fw-bold" id="task-badge-{{ t.id }}" 
+                      style="width: 44px; font-size: 11.5px; border-radius: 6px; {% if (t.progress or 0) >= 100 %}background: #10b981; color: #fff;{% elif (t.progress or 0) > 0 %}background: #dbeafe; color: #1e40af; border: 1px solid #93c5fd;{% else %}background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1;{% endif %}">
+                      {{ to_farsi_digits(t.progress or 0) }}٪
+                    </span>
+                  </div>
+                  <!-- Minimalist Preset Buttons -->
+                  <div class="d-flex gap-1" style="font-size: 10px;">
+                    <button type="button" class="pm-preset-btn" onclick="setTaskPreset({{ t.id }}, 0)">۰٪</button>
+                    <button type="button" class="pm-preset-btn" onclick="setTaskPreset({{ t.id }}, 25)">۲۵٪</button>
+                    <button type="button" class="pm-preset-btn" onclick="setTaskPreset({{ t.id }}, 50)">۵۰٪</button>
+                    <button type="button" class="pm-preset-btn" onclick="setTaskPreset({{ t.id }}, 75)">۷۵٪</button>
+                    <button type="button" class="pm-preset-btn btn-done" onclick="setTaskPreset({{ t.id }}, 100)">۱۰۰٪ ✓</button>
+                  </div>
+                </div>
+              </td>
+
+              <!-- Status Dropdown Select -->
+              <td class="text-center">
+                <select class="pm-status-select status-{{ t.status if (t.progress or 0) < 100 else 'completed' }}" id="status-select-{{ t.id }}" onchange="changeTaskStatus({{ t.id }}, this.value)">
+                  <option value="pending" {% if t.status == 'pending' and (t.progress or 0) == 0 %}selected{% endif %}>⚪ شروع نشده</option>
+                  <option value="in_progress" {% if t.status == 'in_progress' or (0 < (t.progress or 0) < 100) %}selected{% endif %}>🔵 در حال اجرا</option>
+                  <option value="completed" {% if t.status == 'completed' or (t.progress or 0) >= 100 %}selected{% endif %}>🟢 تکمیل شده</option>
+                  <option value="delayed" {% if t.status == 'delayed' %}selected{% endif %}>🔴 دارای تاخیر</option>
+                </select>
+              </td>
+
+              <!-- Actions (Edit / Delete) -->
+              <td class="text-center">
+                <div class="d-inline-flex gap-1">
+                  <button type="button" class="btn-pm-icon" onclick="openEditTaskModal({{ t.id }})" title="ویرایش فعالیت">
+                    <i class="fas fa-pencil-alt"></i>
+                  </button>
+                  <button type="button" class="btn-pm-icon btn-pm-danger" onclick="deleteTaskAjax({{ t.id }})" title="حذف فعالیت">
+                    <i class="fas fa-trash-alt"></i>
+                  </button>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+
+            {% if not tasks %}
+            <tr id="wbs-empty-row">
+              <td colspan="7" class="text-center py-5">
+                <div class="text-muted">
+                  <i class="fas fa-tasks fs-1 d-block mb-3 text-secondary opacity-50"></i>
+                  <h6 class="fw-bold text-dark">هنوز فعالیتی برای این پروژه ثبت نشده است</h6>
+                  <p class="small text-muted mb-3">می‌توانید با کلیک بر روی دکمه زیر، اولین بسته کاری (WBS) را برای این پروژه تعریف کنید.</p>
+                  <button type="button" class="btn btn-sm btn-primary px-3" onclick="openNewTaskModal()">
+                    <i class="fas fa-plus-circle me-1"></i> + تعریف اولین فعالیت (WBS)
+                  </button>
+                </div>
+              </td>
+            </tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Footer Status Legend Bar -->
+      <div class="table-legend-bar d-flex align-items-center justify-content-between flex-wrap gap-2 p-3 bg-light border-top">
+        <div class="d-flex align-items-center gap-3 small text-muted">
+          <span class="fw-bold text-dark"><i class="fas fa-info-circle text-primary me-1"></i> راهنمای وضعیت:</span>
+          <span class="d-inline-flex align-items-center gap-1"><span class="badge bg-success rounded-circle p-1"></span> تکمیل شده (۱۰۰٪)</span>
+          <span class="d-inline-flex align-items-center gap-1"><span class="badge bg-primary rounded-circle p-1"></span> در حال اقدام (۱ تا ۹۹٪)</span>
+          <span class="d-inline-flex align-items-center gap-1"><span class="badge bg-secondary rounded-circle p-1"></span> در نوبت اقدام (۰٪)</span>
+          <span class="d-inline-flex align-items-center gap-1"><span class="badge bg-danger rounded-circle p-1"></span> نیازمند پیگیری / تاخیر</span>
+        </div>
+        <div class="small text-muted">
+          مجموع فعالیت‌های ثبت شده: <strong id="wbs-total-count">{{ to_farsi_digits(tasks|length) }}</strong> مورد
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- VIEW 2: Kanban Board View with Drag & Drop -->
+  <div id="view-kanban" class="pm-tab-pane" style="display: none;">
+    <div class="pm-kanban-grid">
+      
+      <!-- 1. Pending Column -->
+      <div class="pm-kanban-column">
+        <div class="d-flex align-items-center justify-content-between mb-3 border-bottom pb-2">
+          <h6 class="fw-bold text-secondary mb-0"><i class="far fa-clock me-1"></i> در نوبت اقدام</h6>
+          <span class="badge bg-secondary rounded-pill kanban-badge-count" id="kanban-count-pending">
+            {{ to_farsi_digits(tasks|selectattr("status", "equalto", "pending")|list|length) }}
+          </span>
+        </div>
+        <div class="pm-kanban-col-body" id="kanban-col-pending" 
+             ondragover="onKanbanDragOver(event)" 
+             ondragleave="onKanbanDragLeave(event)" 
+             ondrop="onKanbanDrop(event, 'pending')">
+          {% for t in tasks if t.status == 'pending' %}
+          <div class="pm-kanban-card task-row kanban-task-card" id="kanban-card-{{ t.id }}" 
+               draggable="true" 
+               ondragstart="onKanbanDragStart(event, {{ t.id }})" 
+               ondragend="onKanbanDragEnd(event)" 
+               data-task-id="{{ t.id }}" 
+               data-assignee="{{ t.assignee_name or '' }}" 
+               data-status="{{ t.status }}" 
+               data-wbs="{{ t.wbs }}" 
+               data-progress="{{ t.progress or 0 }}" 
+               data-start="{{ t.start_date_shamsi }}" 
+               data-end="{{ t.end_date_shamsi }}" 
+               data-project="{{ t.project.title if t.project else '' }}" 
+               data-title="{{ t.title }}">
+            <div class="d-flex align-items-center justify-content-between mb-1">
+              <span class="badge bg-light text-primary border font-monospace kanban-wbs-text">{{ t.wbs }}</span>
+              <div class="d-flex gap-1">
+                <button type="button" class="btn-pm-icon" onclick="openEditTaskModal({{ t.id }})" title="ویرایش">
+                  <i class="fas fa-pencil-alt"></i>
+                </button>
+                <button type="button" class="btn-pm-icon btn-pm-danger" onclick="deleteTaskAjax({{ t.id }})" title="حذف">
+                  <i class="fas fa-trash-alt"></i>
+                </button>
+              </div>
+            </div>
+            {% if is_all_projects and t.project %}
+            <div class="text-primary small mb-1" style="font-size: 10.5px;"><i class="fas fa-folder me-1"></i>{{ t.project.title }}</div>
+            {% endif %}
+            <div class="fw-bold text-dark small mb-2 kanban-title-text">{{ t.title }}</div>
+            <div class="d-flex align-items-center justify-content-between border-top pt-2 mt-1">
+              <span class="small text-muted"><i class="fas fa-user text-primary me-1"></i> <span class="kanban-assignee-text">{{ t.assignee_name or '—' }}</span></span>
+              <span class="small text-muted font-monospace"><span class="kanban-duration-text">{{ to_farsi_digits(t.duration_days or 0) }}</span> روز</span>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <!-- 2. In Progress Column -->
+      <div class="pm-kanban-column">
+        <div class="d-flex align-items-center justify-content-between mb-3 border-bottom pb-2">
+          <h6 class="fw-bold text-primary mb-0"><i class="fas fa-spinner fa-spin me-1"></i> در حال اجرا</h6>
+          <span class="badge bg-primary rounded-pill kanban-badge-count" id="kanban-count-inprogress">
+            {{ to_farsi_digits(tasks|selectattr("status", "equalto", "in_progress")|list|length) }}
+          </span>
+        </div>
+        <div class="pm-kanban-col-body" id="kanban-col-in_progress" 
+             ondragover="onKanbanDragOver(event)" 
+             ondragleave="onKanbanDragLeave(event)" 
+             ondrop="onKanbanDrop(event, 'in_progress')">
+          {% for t in tasks if t.status == 'in_progress' %}
+          <div class="pm-kanban-card border-primary task-row kanban-task-card" id="kanban-card-{{ t.id }}" 
+               draggable="true" 
+               ondragstart="onKanbanDragStart(event, {{ t.id }})" 
+               ondragend="onKanbanDragEnd(event)" 
+               data-task-id="{{ t.id }}" 
+               data-assignee="{{ t.assignee_name or '' }}" 
+               data-status="{{ t.status }}" 
+               data-wbs="{{ t.wbs }}" 
+               data-progress="{{ t.progress or 0 }}" 
+               data-start="{{ t.start_date_shamsi }}" 
+               data-end="{{ t.end_date_shamsi }}" 
+               data-project="{{ t.project.title if t.project else '' }}" 
+               data-title="{{ t.title }}">
+            <div class="d-flex align-items-center justify-content-between mb-1">
+              <span class="badge bg-primary text-white font-monospace kanban-wbs-text">{{ t.wbs }}</span>
+              <span class="badge bg-light text-primary border fw-bold" id="kanban-badge-{{ t.id }}">{{ to_farsi_digits(t.progress or 0) }}٪</span>
+            </div>
+            {% if is_all_projects and t.project %}
+            <div class="text-primary small mb-1" style="font-size: 10.5px;"><i class="fas fa-folder me-1"></i>{{ t.project.title }}</div>
+            {% endif %}
+            <div class="fw-bold text-dark small mb-2 kanban-title-text">{{ t.title }}</div>
+            <div class="progress mb-2" style="height: 5px;">
+              <div class="progress-bar bg-primary" id="kanban-progbar-{{ t.id }}" role="progressbar" style="width: {{ t.progress or 0 }}%;"></div>
+            </div>
+            <div class="d-flex align-items-center justify-content-between border-top pt-2 mt-1">
+              <span class="small text-muted"><i class="fas fa-user text-primary me-1"></i> <span class="kanban-assignee-text">{{ t.assignee_name or '—' }}</span></span>
+              <div class="d-flex gap-1">
+                <button type="button" class="btn-pm-icon" onclick="openEditTaskModal({{ t.id }})" title="ویرایش">
+                  <i class="fas fa-pencil-alt"></i>
+                </button>
+                <button type="button" class="btn-pm-icon btn-pm-danger" onclick="deleteTaskAjax({{ t.id }})" title="حذف">
+                  <i class="fas fa-trash-alt"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <!-- 3. Completed Column -->
+      <div class="pm-kanban-column">
+        <div class="d-flex align-items-center justify-content-between mb-3 border-bottom pb-2">
+          <h6 class="fw-bold text-success mb-0"><i class="fas fa-check-double me-1"></i> تکمیل شده</h6>
+          <span class="badge bg-success rounded-pill kanban-badge-count" id="kanban-count-completed">
+            {{ to_farsi_digits(tasks|selectattr("status", "equalto", "completed")|list|length) }}
+          </span>
+        </div>
+        <div class="pm-kanban-col-body" id="kanban-col-completed" 
+             ondragover="onKanbanDragOver(event)" 
+             ondragleave="onKanbanDragLeave(event)" 
+             ondrop="onKanbanDrop(event, 'completed')">
+          {% for t in tasks if t.status == 'completed' %}
+          <div class="pm-kanban-card border-success task-row kanban-task-card" id="kanban-card-{{ t.id }}" 
+               draggable="true" 
+               ondragstart="onKanbanDragStart(event, {{ t.id }})" 
+               ondragend="onKanbanDragEnd(event)" 
+               data-task-id="{{ t.id }}" 
+               data-assignee="{{ t.assignee_name or '' }}" 
+               data-status="{{ t.status }}" 
+               data-wbs="{{ t.wbs }}" 
+               data-progress="{{ t.progress or 0 }}" 
+               data-start="{{ t.start_date_shamsi }}" 
+               data-end="{{ t.end_date_shamsi }}" 
+               data-project="{{ t.project.title if t.project else '' }}" 
+               data-title="{{ t.title }}">
+            <div class="d-flex align-items-center justify-content-between mb-1">
+              <span class="badge bg-success text-white font-monospace kanban-wbs-text">{{ t.wbs }}</span>
+              <span class="badge bg-success text-white" id="kanban-badge-{{ t.id }}">۱۰۰٪ ✓</span>
+            </div>
+            {% if is_all_projects and t.project %}
+            <div class="text-primary small mb-1" style="font-size: 10.5px;"><i class="fas fa-folder me-1"></i>{{ t.project.title }}</div>
+            {% endif %}
+            <div class="fw-bold text-dark small mb-1 text-decoration-line-through text-muted kanban-title-text">{{ t.title }}</div>
+            <div class="d-flex align-items-center justify-content-between border-top pt-1 mt-1">
+              <span class="small text-muted"><i class="fas fa-user text-success me-1"></i> <span class="kanban-assignee-text">{{ t.assignee_name or '—' }}</span></span>
+              <div class="d-flex gap-1">
+                <button type="button" class="btn-pm-icon" onclick="openEditTaskModal({{ t.id }})" title="ویرایش">
+                  <i class="fas fa-pencil-alt"></i>
+                </button>
+                <button type="button" class="btn-pm-icon btn-pm-danger" onclick="deleteTaskAjax({{ t.id }})" title="حذف">
+                  <i class="fas fa-trash-alt"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <!-- 4. Delayed Column -->
+      <div class="pm-kanban-column">
+        <div class="d-flex align-items-center justify-content-between mb-3 border-bottom pb-2">
+          <h6 class="fw-bold text-danger mb-0"><i class="fas fa-exclamation-triangle me-1"></i> دارای تاخیر / توجه</h6>
+          <span class="badge bg-danger rounded-pill kanban-badge-count" id="kanban-count-delayed">
+            {{ to_farsi_digits(tasks|selectattr("status", "equalto", "delayed")|list|length) }}
+          </span>
+        </div>
+        <div class="pm-kanban-col-body" id="kanban-col-delayed" 
+             ondragover="onKanbanDragOver(event)" 
+             ondragleave="onKanbanDragLeave(event)" 
+             ondrop="onKanbanDrop(event, 'delayed')">
+          {% for t in tasks if t.status == 'delayed' %}
+          <div class="pm-kanban-card border-danger task-row kanban-task-card" id="kanban-card-{{ t.id }}" 
+               draggable="true" 
+               ondragstart="onKanbanDragStart(event, {{ t.id }})" 
+               ondragend="onKanbanDragEnd(event)" 
+               data-task-id="{{ t.id }}" 
+               data-assignee="{{ t.assignee_name or '' }}" 
+               data-status="{{ t.status }}" 
+               data-wbs="{{ t.wbs }}" 
+               data-progress="{{ t.progress or 0 }}" 
+               data-start="{{ t.start_date_shamsi }}" 
+               data-end="{{ t.end_date_shamsi }}" 
+               data-project="{{ t.project.title if t.project else '' }}" 
+               data-title="{{ t.title }}">
+            <div class="d-flex align-items-center justify-content-between mb-1">
+              <span class="badge bg-danger text-white font-monospace kanban-wbs-text">{{ t.wbs }}</span>
+              <span class="badge bg-light text-danger border fw-bold" id="kanban-badge-{{ t.id }}">تاخیر</span>
+            </div>
+            {% if is_all_projects and t.project %}
+            <div class="text-primary small mb-1" style="font-size: 10.5px;"><i class="fas fa-folder me-1"></i>{{ t.project.title }}</div>
+            {% endif %}
+            <div class="fw-bold text-dark small mb-2 kanban-title-text">{{ t.title }}</div>
+            <div class="d-flex align-items-center justify-content-between border-top pt-2 mt-1">
+              <span class="small text-muted"><i class="fas fa-user text-danger me-1"></i> <span class="kanban-assignee-text">{{ t.assignee_name or '—' }}</span></span>
+              <div class="d-flex gap-1">
+                <button type="button" class="btn-pm-icon" onclick="openEditTaskModal({{ t.id }})" title="ویرایش">
+                  <i class="fas fa-pencil-alt"></i>
+                </button>
+                <button type="button" class="btn-pm-icon btn-pm-danger" onclick="deleteTaskAjax({{ t.id }})" title="حذف">
+                  <i class="fas fa-trash-alt"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- VIEW 3: Shamsi Gantt Chart View -->
+  <div id="view-gantt" class="pm-tab-pane" style="display: none;">
+    <div class="card agenda-card p-3 shadow-sm border-0" style="border-radius: 12px;">
+      <div class="d-flex align-items-center justify-content-between mb-3 border-bottom pb-2 flex-wrap gap-2">
+        <div>
+          <h6 class="fw-bold text-dark mb-0"><i class="fas fa-calendar-week text-primary me-2"></i> زمان‌بندی و گانت چارت شمسی پروژه</h6>
+          <span class="text-muted small">پایش خطوط زمانی فعالیت‌ها در بازه {{ to_farsi_digits(project.start_date_shamsi) }} تا {{ to_farsi_digits(project.end_date_shamsi) }}</span>
+        </div>
+        <div class="d-flex gap-3 small">
+          <span class="d-flex align-items-center gap-1"><span style="width: 12px; height: 12px; border-radius: 3px; background: #10b981;"></span> تکمیل شده</span>
+          <span class="d-flex align-items-center gap-1"><span style="width: 12px; height: 12px; border-radius: 3px; background: #3b82f6;"></span> در حال اجرا</span>
+          <span class="d-flex align-items-center gap-1"><span style="width: 12px; height: 12px; border-radius: 3px; background: #cbd5e1;"></span> زمان‌بندی شده</span>
+        </div>
+      </div>
+
+      <div class="table-responsive">
+        <table class="table table-bordered align-middle mb-0" style="font-size: 12px;">
+          <thead class="text-center bg-light">
+            <tr>
+              <th style="width: 60px;">WBS</th>
+              <th style="width: 250px;" class="text-start">فعالیت و اقدام</th>
+              <th style="width: 110px;">مسئول</th>
+              <th style="width: 18%;">هفته اول<br><span class="fw-normal small text-muted">روز ۱ تا ۷</span></th>
+              <th style="width: 18%;">هفته دوم<br><span class="fw-normal small text-muted">روز ۸ تا ۱۴</span></th>
+              <th style="width: 18%;">هفته سوم<br><span class="fw-normal small text-muted">روز ۱۵ تا ۲۱</span></th>
+              <th style="width: 18%;">هفته چهارم<br><span class="fw-normal small text-muted">روز ۲۲ به بعد</span></th>
+            </tr>
+          </thead>
+          <tbody id="ganttTableBody">
+            {% for t in tasks %}
+            <tr class="task-row gantt-task-row" data-task-id="{{ t.id }}" 
+                data-assignee="{{ t.assignee_name or '' }}" 
+                data-status="{{ t.status }}" 
+                data-wbs="{{ t.wbs }}" 
+                data-progress="{{ t.progress or 0 }}" 
+                data-start="{{ t.start_date_shamsi }}" 
+                data-end="{{ t.end_date_shamsi }}" 
+                data-project="{{ t.project.title if t.project else '' }}" 
+                data-title="{{ t.title }}" 
+                id="gantt-row-{{ t.id }}">
+              <td class="text-center fw-bold text-primary font-monospace gantt-wbs-text">{{ t.wbs }}</td>
+              <td>
+                <div class="text-dark fw-bold gantt-title-text" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 240px;" title="{{ t.title }}">{{ t.title }}</div>
+                {% if is_all_projects and t.project %}
+                <div class="text-primary small" style="font-size: 10px;"><i class="fas fa-folder me-1"></i>{{ t.project.title }}</div>
+                {% endif %}
+              </td>
+              <td class="text-center small text-muted gantt-assignee-text">{{ t.assignee_name or '—' }}</td>
+
+              <!-- Week 1 -->
+              <td class="p-1 text-center position-relative align-middle" style="min-width: 130px;">
+                <div class="gantt-track position-relative" style="height: 22px; background: #e2e8f0; border-radius: 6px; overflow: hidden; display: flex; align-items: center; justify-content: center; box-shadow: inset 0 1px 2px rgba(0,0,0,0.06);">
+                  <div class="gantt-bar-fill position-absolute top-0 start-0 bottom-0" 
+                       style="width: {{ t.progress or 0 }}%; background: {% if (t.progress or 0) >= 100 or t.status == 'completed' %}linear-gradient(90deg, #10b981, #059669){% elif t.status == 'delayed' %}linear-gradient(90deg, #ef4444, #dc2626){% elif (t.progress or 0) > 0 or t.status == 'in_progress' %}linear-gradient(90deg, #3b82f6, #2563eb){% else %}#cbd5e1{% endif %}; transition: width 0.3s ease, background 0.3s ease;"></div>
+                  <span class="gantt-bar-badge position-relative fw-bold" style="font-size: 10.5px; z-index: 2; color: {% if (t.progress or 0) > 40 %}#ffffff{% elif t.status == 'delayed' %}#dc2626{% elif (t.progress or 0) > 0 %}#1e3a8a{% else %}#64748b{% endif %};">
+                    {% if (t.progress or 0) >= 100 or t.status == 'completed' %}۱۰۰٪ ✓{% elif t.status == 'delayed' %}تاخیر ({{ to_farsi_digits(t.progress or 0) }}٪){% elif (t.progress or 0) > 0 %}{{ to_farsi_digits(t.progress or 0) }}٪{% else %}۰٪{% endif %}
+                  </span>
+                </div>
+              </td>
+
+              <!-- Week 2 -->
+              <td class="p-1 text-center position-relative align-middle" style="min-width: 130px;">
+                {% if (t.duration_days or 0) > 2 %}
+                <div class="gantt-track position-relative" style="height: 22px; background: #e2e8f0; border-radius: 6px; overflow: hidden; display: flex; align-items: center; justify-content: center; box-shadow: inset 0 1px 2px rgba(0,0,0,0.06);">
+                  <div class="gantt-bar-fill position-absolute top-0 start-0 bottom-0" 
+                       style="width: {{ t.progress or 0 }}%; background: {% if (t.progress or 0) >= 100 or t.status == 'completed' %}linear-gradient(90deg, #10b981, #059669){% elif t.status == 'delayed' %}linear-gradient(90deg, #ef4444, #dc2626){% elif (t.progress or 0) > 0 or t.status == 'in_progress' %}linear-gradient(90deg, #3b82f6, #2563eb){% else %}#cbd5e1{% endif %}; transition: width 0.3s ease, background 0.3s ease;"></div>
+                  <span class="gantt-bar-badge position-relative fw-bold" style="font-size: 10.5px; z-index: 2; color: {% if (t.progress or 0) > 40 %}#ffffff{% elif t.status == 'delayed' %}#dc2626{% elif (t.progress or 0) > 0 %}#1e3a8a{% else %}#64748b{% endif %};">
+                    {% if (t.progress or 0) >= 100 or t.status == 'completed' %}۱۰۰٪ ✓{% elif t.status == 'delayed' %}تاخیر{% elif (t.progress or 0) > 0 %}{{ to_farsi_digits(t.progress or 0) }}٪{% else %}۰٪{% endif %}
+                  </span>
+                </div>
+                {% else %}
+                <span class="text-muted small" style="font-size: 10px;">—</span>
+                {% endif %}
+              </td>
+
+              <!-- Week 3 -->
+              <td class="p-1 text-center position-relative align-middle" style="min-width: 130px;">
+                {% if (t.duration_days or 0) > 8 %}
+                <div class="gantt-track position-relative" style="height: 22px; background: #e2e8f0; border-radius: 6px; overflow: hidden; display: flex; align-items: center; justify-content: center; box-shadow: inset 0 1px 2px rgba(0,0,0,0.06);">
+                  <div class="gantt-bar-fill position-absolute top-0 start-0 bottom-0" 
+                       style="width: {{ t.progress or 0 }}%; background: {% if (t.progress or 0) >= 100 or t.status == 'completed' %}linear-gradient(90deg, #10b981, #059669){% elif t.status == 'delayed' %}linear-gradient(90deg, #ef4444, #dc2626){% elif (t.progress or 0) > 0 or t.status == 'in_progress' %}linear-gradient(90deg, #3b82f6, #2563eb){% else %}#cbd5e1{% endif %}; transition: width 0.3s ease, background 0.3s ease;"></div>
+                  <span class="gantt-bar-badge position-relative fw-bold" style="font-size: 10.5px; z-index: 2; color: {% if (t.progress or 0) > 40 %}#ffffff{% elif t.status == 'delayed' %}#dc2626{% elif (t.progress or 0) > 0 %}#1e3a8a{% else %}#64748b{% endif %};">
+                    {% if (t.progress or 0) >= 100 or t.status == 'completed' %}۱۰۰٪ ✓{% elif t.status == 'delayed' %}تاخیر{% elif (t.progress or 0) > 0 %}{{ to_farsi_digits(t.progress or 0) }}٪{% else %}۰٪{% endif %}
+                  </span>
+                </div>
+                {% else %}
+                <span class="text-muted small" style="font-size: 10px;">—</span>
+                {% endif %}
+              </td>
+
+              <!-- Week 4 -->
+              <td class="p-1 text-center position-relative align-middle" style="min-width: 130px;">
+                {% if (t.duration_days or 0) > 15 %}
+                <div class="gantt-track position-relative" style="height: 22px; background: #e2e8f0; border-radius: 6px; overflow: hidden; display: flex; align-items: center; justify-content: center; box-shadow: inset 0 1px 2px rgba(0,0,0,0.06);">
+                  <div class="gantt-bar-fill position-absolute top-0 start-0 bottom-0" 
+                       style="width: {{ t.progress or 0 }}%; background: {% if (t.progress or 0) >= 100 or t.status == 'completed' %}linear-gradient(90deg, #10b981, #059669){% elif t.status == 'delayed' %}linear-gradient(90deg, #ef4444, #dc2626){% elif (t.progress or 0) > 0 or t.status == 'in_progress' %}linear-gradient(90deg, #3b82f6, #2563eb){% else %}#cbd5e1{% endif %}; transition: width 0.3s ease, background 0.3s ease;"></div>
+                  <span class="gantt-bar-badge position-relative fw-bold" style="font-size: 10.5px; z-index: 2; color: {% if (t.progress or 0) > 40 %}#ffffff{% elif t.status == 'delayed' %}#dc2626{% elif (t.progress or 0) > 0 %}#1e3a8a{% else %}#64748b{% endif %};">
+                    {% if (t.progress or 0) >= 100 or t.status == 'completed' %}۱۰۰٪ ✓{% elif t.status == 'delayed' %}تاخیر{% elif (t.progress or 0) > 0 %}{{ to_farsi_digits(t.progress or 0) }}٪{% else %}۰٪{% endif %}
+                  </span>
+                </div>
+                {% else %}
+                <span class="text-muted small" style="font-size: 10px;">—</span>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+
+            {% if not tasks %}
+            <tr id="gantt-empty-row">
+              <td colspan="7" class="text-center py-5 text-muted">
+                <i class="fas fa-calendar-times fs-2 d-block mb-2 text-secondary opacity-50"></i>
+                فعالیتی برای نمایش در گانت چارت وجود ندارد.
+              </td>
+            </tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- 5. MODALS -->
+
+<!-- Modal 1: New Task Modal -->
+<div id="newTaskModalOverlay" class="pm-modal-overlay" style="display: none;">
+  <div class="pm-modal-card">
+    <div class="pm-modal-header">
+      <div class="d-flex align-items-center gap-2">
+        <div class="pm-modal-header-icon">
+          <i class="fas fa-plus-circle"></i>
+        </div>
+        <div>
+          <h6 class="pm-modal-title">تعریف فعالیت جدید در پروژه</h6>
+          <span class="text-muted small" style="font-size: 11px;">ثبت بسته کاری و اقدام جدید در جدول WBS</span>
+        </div>
+      </div>
+      <button type="button" class="pm-modal-close-btn" onclick="closeNewTaskModal()" title="بستن">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+    <form id="newTaskForm" onsubmit="submitNewTaskAjax(event)" style="margin: 0;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      
+      <div class="pm-modal-body">
+        {% if is_all_projects or all_projects|length > 1 %}
+        <div class="pm-form-group">
+          <label class="pm-form-label">پروژه مقصد <span class="text-danger">*</span></label>
+          <select name="project_id" id="new_project_id" class="pm-form-input" required>
+            {% for p in all_projects %}
+            <option value="{{ p.id }}" {% if not is_all_projects and p.id == project.id %}selected{% endif %}>
+              📁 {{ p.title }} ({{ p.code }})
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+        {% else %}
+        <input type="hidden" id="new_project_id" name="project_id" value="{{ project.id }}">
+        {% endif %}
+
+        <div class="pm-form-group">
+          <label class="pm-form-label">عنوان فعالیت و شرح اقدام <span class="text-danger">*</span></label>
+          <input type="text" name="title" id="new_title" class="pm-form-input" placeholder="مثال: تعویض روشنایی سالن شماره ۲..." required>
+        </div>
+
+        <div class="pm-form-grid-2">
+          <div class="pm-form-group">
+            <label class="pm-form-label">کد WBS (اختیاری)</label>
+            <input type="text" name="wbs" id="new_wbs" class="pm-form-input" placeholder="خودکار یا مثال: 1.19" style="direction: ltr; text-align: left;">
+          </div>
+          <div class="pm-form-group">
+            <label class="pm-form-label">مسئول اقدام</label>
+            <input type="text" name="assignee_name" id="new_assignee_name" list="user_names_list" class="pm-form-input" placeholder="نام مسئول یا انتخاب از لیست">
+            <datalist id="user_names_list">
+              {% for u in users %}
+              <option value="{{ u.name }}">{{ u.role }}</option>
+              {% endfor %}
+            </datalist>
+          </div>
+        </div>
+
+        <div class="pm-form-grid-3">
+          <div class="pm-form-group">
+            <label class="pm-form-label">تاریخ شروع</label>
+            <input type="text" name="start_date_shamsi" id="new_start_date" class="pm-form-input" value="{{ project.start_date_shamsi or '1404/12/05' }}" style="direction: ltr; text-align: center; font-size: 12px;">
+          </div>
+          <div class="pm-form-group">
+            <label class="pm-form-label">تاریخ پایان</label>
+            <input type="text" name="end_date_shamsi" id="new_end_date" class="pm-form-input" value="{{ project.end_date_shamsi or '1404/12/27' }}" style="direction: ltr; text-align: center; font-size: 12px;">
+          </div>
+          <div class="pm-form-group">
+            <label class="pm-form-label">مدت (روز)</label>
+            <input type="number" name="duration_days" id="new_duration" class="pm-form-input" value="5" min="1" style="text-align: center; font-size: 12px;">
+          </div>
+        </div>
+
+        <div class="pm-form-group">
+          <label class="pm-form-label">پیش‌نیاز (اختیاری)</label>
+          <input type="text" name="predecessor" id="new_predecessor" class="pm-form-input" placeholder="مثال: 1.1 یا تحویل کابل‌ها">
+        </div>
+
+        <div class="pm-form-group">
+          <label class="pm-form-label">توضیحات و یادداشت‌ها</label>
+          <textarea name="notes" id="new_notes" class="pm-form-input" style="height: 55px; padding: 6px 10px;" placeholder="نکات تکمیلی فعالیت..."></textarea>
+        </div>
+      </div>
+
+      <div class="pm-modal-footer">
+        <button type="button" class="btn btn-secondary btn-sm" onclick="closeNewTaskModal()" style="border-radius: 8px; padding: 6px 16px;">انصراف</button>
+        <button type="submit" class="btn btn-primary btn-sm px-3 fw-bold" style="border-radius: 8px; padding: 6px 18px;">
+          <i class="fas fa-save me-1"></i> ثبت فعالیت
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal 2: Edit Task Modal -->
+<div id="editTaskModalOverlay" class="pm-modal-overlay" style="display: none;">
+  <div class="pm-modal-card">
+    <div class="pm-modal-header">
+      <div class="d-flex align-items-center gap-2">
+        <div class="pm-modal-header-icon" style="background: #fef3c7; color: #d97706;">
+          <i class="fas fa-edit"></i>
+        </div>
+        <div>
+          <h6 class="pm-modal-title">ویرایش فعالیت WBS</h6>
+          <span class="text-muted small" style="font-size: 11px;">تغییر مشخصات، مسئول و زمان‌بندی اقدام</span>
+        </div>
+      </div>
+      <button type="button" class="pm-modal-close-btn" onclick="closeEditTaskModal()" title="بستن">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+    <form id="editTaskForm" onsubmit="submitEditTaskAjax(event)" style="margin: 0;">
+      <input type="hidden" id="edit_task_id" name="task_id">
+      
+      <div class="pm-modal-body">
+        <div class="pm-form-group">
+          <label class="pm-form-label">عنوان فعالیت و شرح اقدام <span class="text-danger">*</span></label>
+          <input type="text" id="edit_title" name="title" class="pm-form-input" required>
+        </div>
+
+        <div class="pm-form-grid-2">
+          <div class="pm-form-group">
+            <label class="pm-form-label">کد WBS</label>
+            <input type="text" id="edit_wbs" name="wbs" class="pm-form-input" style="direction: ltr; text-align: left;" required>
+          </div>
+          <div class="pm-form-group">
+            <label class="pm-form-label">مسئول اقدام</label>
+            <input type="text" id="edit_assignee_name" name="assignee_name" list="user_names_list" class="pm-form-input" placeholder="نام مسئول">
+          </div>
+        </div>
+
+        <div class="pm-form-grid-3">
+          <div class="pm-form-group">
+            <label class="pm-form-label">تاریخ شروع</label>
+            <input type="text" id="edit_start_date" name="start_date_shamsi" class="pm-form-input" style="direction: ltr; text-align: center; font-size: 12px;">
+          </div>
+          <div class="pm-form-group">
+            <label class="pm-form-label">تاریخ پایان</label>
+            <input type="text" id="edit_end_date" name="end_date_shamsi" class="pm-form-input" style="direction: ltr; text-align: center; font-size: 12px;">
+          </div>
+          <div class="pm-form-group">
+            <label class="pm-form-label">مدت (روز)</label>
+            <input type="number" id="edit_duration" name="duration_days" class="pm-form-input" min="1" style="text-align: center; font-size: 12px;">
+          </div>
+        </div>
+
+        <div class="pm-form-grid-2">
+          <div class="pm-form-group">
+            <label class="pm-form-label">وضعیت اقدام</label>
+            <select id="edit_status" name="status" class="pm-form-input">
+              <option value="pending">⚪ شروع نشده</option>
+              <option value="in_progress">🔵 در حال اجرا</option>
+              <option value="completed">🟢 تکمیل شده</option>
+              <option value="delayed">🔴 دارای تاخیر</option>
+            </select>
+          </div>
+          <div class="pm-form-group">
+            <label class="pm-form-label">پیشرفت (% DONE)</label>
+            <div class="d-flex align-items-center gap-2">
+              <input type="number" id="edit_progress" name="progress" min="0" max="100" class="pm-form-input" style="text-align: center;">
+              <span class="text-muted small">٪</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="pm-form-group">
+          <label class="pm-form-label">پیش‌نیاز</label>
+          <input type="text" id="edit_predecessor" name="predecessor" class="pm-form-input" placeholder="مثال: 1.1">
+        </div>
+
+        <div class="pm-form-group">
+          <label class="pm-form-label">توضیحات و یادداشت‌ها</label>
+          <textarea id="edit_notes" name="notes" class="pm-form-input" style="height: 55px; padding: 6px 10px;" placeholder="نکات تکمیلی..."></textarea>
+        </div>
+      </div>
+
+      <div class="pm-modal-footer">
+        <button type="button" class="btn btn-secondary btn-sm" onclick="closeEditTaskModal()" style="border-radius: 8px; padding: 6px 16px;">انصراف</button>
+        <button type="submit" class="btn btn-primary btn-sm px-3 fw-bold" style="border-radius: 8px; padding: 6px 18px;">
+          <i class="fas fa-check me-1"></i> ذخیره تغییرات
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal 3: New Project Modal -->
+<div id="newProjectModalOverlay" class="pm-modal-overlay" style="display: none;">
+  <div class="pm-modal-card">
+    <div class="pm-modal-header">
+      <div class="d-flex align-items-center gap-2">
+        <div class="pm-modal-header-icon" style="background: #ecfdf5; color: #10b981;">
+          <i class="fas fa-folder-plus"></i>
+        </div>
+        <div>
+          <h6 class="pm-modal-title">ایجاد پروژه جدید</h6>
+          <span class="text-muted small" style="font-size: 11px;">تعریف ساختار پروژه، بازه زمانی و مدیر پروژه</span>
+        </div>
+      </div>
+      <button type="button" class="pm-modal-close-btn" onclick="closeNewProjectModal()" title="بستن">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+    <form method="post" action="{{ url_for('projects.project_new') }}" style="margin: 0;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      
+      <div class="pm-modal-body">
+        <div class="pm-form-group">
+          <label class="pm-form-label">عنوان پروژه <span class="text-danger">*</span></label>
+          <input type="text" name="title" class="pm-form-input" placeholder="مثال: پروژه پیاده‌سازی سامانه اتوماسیون اداری..." required>
+        </div>
+
+        <div class="pm-form-grid-2">
+          <div class="pm-form-group">
+            <label class="pm-form-label">کد پروژه (اختیاری)</label>
+            <input type="text" name="code" class="pm-form-input" placeholder="مثال: PRJ-1404-02" style="direction: ltr; text-align: left;">
+          </div>
+          <div class="pm-form-group">
+            <label class="pm-form-label">مدیر / مسئول پروژه</label>
+            <input type="text" name="manager_name" list="user_names_list" class="pm-form-input" placeholder="نام مدیر پروژه">
+          </div>
+        </div>
+
+        <div class="pm-form-grid-2">
+          <div class="pm-form-group">
+            <label class="pm-form-label">تاریخ شروع (شمسی)</label>
+            <input type="text" name="start_date_shamsi" class="pm-form-input" value="1404/01/01" style="direction: ltr; text-align: center;">
+          </div>
+          <div class="pm-form-group">
+            <label class="pm-form-label">تاریخ پایان (شمسی)</label>
+            <input type="text" name="end_date_shamsi" class="pm-form-input" value="1404/12/29" style="direction: ltr; text-align: center;">
+          </div>
+        </div>
+
+        <div class="pm-form-group">
+          <label class="pm-form-label">شرح و اهداف پروژه</label>
+          <textarea name="description" class="pm-form-input" style="height: 65px; padding: 8px 12px;" placeholder="توضیحات کوتاه درباره دامنه و اهداف پروژه..."></textarea>
+        </div>
+      </div>
+
+      <div class="pm-modal-footer">
+        <button type="button" class="btn btn-secondary btn-sm" onclick="closeNewProjectModal()" style="border-radius: 8px; padding: 6px 16px;">انصراف</button>
+        <button type="submit" class="btn btn-success btn-sm px-3 fw-bold" style="border-radius: 8px; padding: 6px 18px;">
+          <i class="fas fa-check-circle me-1"></i> ایجاد پروژه
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% if not is_all_projects %}
+<!-- Modal 4: Edit Project Modal -->
+<div id="editProjectModalOverlay" class="pm-modal-overlay" style="display: none;">
+  <div class="pm-modal-card">
+    <div class="pm-modal-header">
+      <div class="d-flex align-items-center gap-2">
+        <div class="pm-modal-header-icon" style="background: #f1f5f9; color: #475569;">
+          <i class="fas fa-cog"></i>
+        </div>
+        <div>
+          <h6 class="pm-modal-title">تنظیمات و مشخصات پروژه</h6>
+          <span class="text-muted small" style="font-size: 11px;">ویرایش عنوان، کد، مدیر و تاریخ‌های پروژه فعلی</span>
+        </div>
+      </div>
+      <button type="button" class="pm-modal-close-btn" onclick="closeEditProjectModal()" title="بستن">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+    <form method="post" action="{{ url_for('projects.project_edit', project_id=project.id) }}" style="margin: 0;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      
+      <div class="pm-modal-body">
+        <div class="pm-form-group">
+          <label class="pm-form-label">عنوان پروژه <span class="text-danger">*</span></label>
+          <input type="text" name="title" class="pm-form-input" value="{{ project.title }}" required>
+        </div>
+
+        <div class="pm-form-grid-2">
+          <div class="pm-form-group">
+            <label class="pm-form-label">کد پروژه</label>
+            <input type="text" name="code" class="pm-form-input" value="{{ project.code }}" style="direction: ltr; text-align: left;">
+          </div>
+          <div class="pm-form-group">
+            <label class="pm-form-label">مدیر پروژه</label>
+            <input type="text" name="manager_name" list="user_names_list" class="pm-form-input" value="{{ project.manager_name or '' }}">
+          </div>
+        </div>
+
+        <div class="pm-form-grid-2">
+          <div class="pm-form-group">
+            <label class="pm-form-label">تاریخ شروع</label>
+            <input type="text" name="start_date_shamsi" class="pm-form-input" value="{{ project.start_date_shamsi }}" style="direction: ltr; text-align: center;">
+          </div>
+          <div class="pm-form-group">
+            <label class="pm-form-label">تاریخ پایان</label>
+            <input type="text" name="end_date_shamsi" class="pm-form-input" value="{{ project.end_date_shamsi }}" style="direction: ltr; text-align: center;">
+          </div>
+        </div>
+
+        <div class="pm-form-group">
+          <label class="pm-form-label">وضعیت پروژه</label>
+          <select name="status" class="pm-form-input">
+            <option value="in_progress" {% if project.status == 'in_progress' %}selected{% endif %}>در جریان (فعال)</option>
+            <option value="completed" {% if project.status == 'completed' %}selected{% endif %}>تکمیل شده</option>
+            <option value="on_hold" {% if project.status == 'on_hold' %}selected{% endif %}>متوقف شده / معلق</option>
+          </select>
+        </div>
+
+        {% if current_user and current_user.role == 'admin' %}
+        <input type="hidden" name="member_ids_submitted" value="1">
+        <div class="pm-form-group mt-3 pt-3 border-top">
+          <div class="d-flex align-items-center justify-content-between mb-2">
+            <label class="pm-form-label mb-0 fw-bold"><i class="fas fa-users-cog text-primary me-1"></i> اعضای دارای دسترسی به این پروژه</label>
+            <span class="text-muted small" style="font-size: 11px;">تعیین کاربرانی که مجاز به مشاهده این پروژه هستند</span>
+          </div>
+          <div class="p-2 bg-light rounded border" style="max-height: 140px; overflow-y: auto;">
+            <div class="row g-2">
+              {% for u in users %}
+              <div class="col-md-6">
+                <label class="d-flex align-items-center gap-2 p-1 rounded bg-white border small cursor-pointer mb-0">
+                  <input type="checkbox" name="member_ids[]" value="{{ u.id }}" class="form-check-input" 
+                    {% if u.id in project_member_ids %}checked{% endif %}>
+                  <span class="text-dark fw-bold" style="font-size: 11.5px;">{{ u.name }}</span>
+                  <span class="text-muted font-monospace" style="font-size: 10px;">({{ u.role }})</span>
+                </label>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+        {% endif %}
+      </div>
+
+      <div class="pm-modal-footer d-flex justify-content-between">
+        <div>
+          <button type="button" class="btn btn-outline-danger btn-sm" onclick="openDeleteProjectModal()" style="border-radius: 8px;">
+            <i class="fas fa-trash-alt me-1"></i> حذف کامل پروژه
+          </button>
+        </div>
+        <div class="d-flex gap-2">
+          <button type="button" class="btn btn-secondary btn-sm" onclick="closeEditProjectModal()" style="border-radius: 8px;">انصراف</button>
+          <button type="submit" class="btn btn-primary btn-sm px-3 fw-bold" style="border-radius: 8px;">
+            <i class="fas fa-save me-1"></i> ذخیره تنظیمات
+          </button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal 5: Delete Project Dedicated Confirmation Modal -->
+<div class="pm-modal-overlay" id="deleteProjectModalOverlay" style="display: none;">
+  <div class="pm-modal-box" style="max-width: 460px; text-align: center; border-top: 4px solid #dc2626;">
+    <div class="pm-modal-header text-danger justify-content-between py-3 border-bottom">
+      <div class="d-flex align-items-center gap-2">
+        <i class="fas fa-exclamation-triangle fs-5 text-danger"></i>
+        <h5 class="modal-title fs-6 fw-bold mb-0 text-dark">تایید نهایی حذف پروژه</h5>
+      </div>
+      <button type="button" class="pm-modal-close" onclick="closeDeleteProjectModal()">&times;</button>
+    </div>
+
+    <form method="post" action="{{ url_for('projects.project_delete', project_id=project.id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      
+      <div class="pm-modal-body p-4 text-center">
+        <div class="mb-3">
+          <div class="d-inline-flex align-items-center justify-content-center rounded-circle" style="width: 60px; height: 60px; background: #fee2e2; color: #dc2626;">
+            <i class="fas fa-trash-alt fs-3"></i>
+          </div>
+        </div>
+
+        <h6 class="fw-bold text-dark mb-2">آیا از حذف کامل این پروژه اطمینان دارید؟</h6>
+        <p class="text-danger fw-bold fs-6 mb-3">«{{ project.title }}»</p>
+        
+        <div class="p-3 mb-3 bg-light rounded text-start" style="font-size: 13px; line-height: 1.9; border: 1px dashed #cbd5e1;">
+          <div class="d-flex justify-content-between mb-1">
+            <span class="text-muted">کد پروژه:</span>
+            <span class="fw-bold font-monospace text-dark">{{ project.code }}</span>
+          </div>
+          <div class="d-flex justify-content-between mb-1">
+            <span class="text-muted">تعداد فعالیت‌های وابسته:</span>
+            <span class="fw-bold text-primary">{{ to_farsi_digits(kpis.total_tasks) }} فعالیت WBS</span>
+          </div>
+          <div class="d-flex justify-content-between">
+            <span class="text-muted">درصد پیشرفت فعلی:</span>
+            <span class="fw-bold text-success">{{ to_farsi_digits(project.progress) }}٪</span>
+          </div>
+        </div>
+
+        <p class="text-muted small mb-0" style="font-size: 12px; line-height: 1.6;">
+          <i class="fas fa-info-circle text-danger me-1"></i>
+          با تایید این درخواست، تمامی داده‌های مربوط به <strong>جدول شکست کار (WBS)، تابلوی کانبان و گانت چارت</strong> این پروژه به صورت دائمی حذف خواهند شد.
+        </p>
+      </div>
+
+      <div class="pm-modal-footer d-flex justify-content-center gap-2 p-3 bg-light border-top">
+        <button type="button" class="btn btn-secondary btn-sm px-3" onclick="closeDeleteProjectModal()" style="border-radius: 8px;">
+          انصراف
+        </button>
+        <button type="submit" class="btn btn-danger btn-sm px-4 fw-bold shadow-sm" style="border-radius: 8px;">
+          <i class="fas fa-trash-alt me-1"></i> بله، پروژه حذف شود
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endif %}
+{% endif %}
+
+<script>
+  // Active CSRF token
+  var PM_CSRF = '{{ csrf_token }}';
+
+  // Drag & Drop State
+  var draggedTaskId = null;
+
+  function onKanbanDragStart(e, taskId) {
+    draggedTaskId = taskId;
+    var card = document.getElementById('kanban-card-' + taskId);
+    if (card) {
+      setTimeout(function() {
+        card.classList.add('dragging');
+      }, 0);
+    }
+    e.dataTransfer.setData('text/plain', taskId);
+    e.dataTransfer.effectAllowed = 'move';
+  }
+
+  function onKanbanDragEnd(e) {
+    if (draggedTaskId) {
+      var card = document.getElementById('kanban-card-' + draggedTaskId);
+      if (card) card.classList.remove('dragging');
+    }
+    draggedTaskId = null;
+    document.querySelectorAll('.pm-kanban-col-body').forEach(function(col) {
+      col.classList.remove('drag-over');
+    });
+  }
+
+  function onKanbanDragOver(e) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    var targetCol = e.currentTarget;
+    if (targetCol && !targetCol.classList.contains('drag-over')) {
+      targetCol.classList.add('drag-over');
+    }
+  }
+
+  function onKanbanDragLeave(e) {
+    var targetCol = e.currentTarget;
+    if (targetCol) {
+      targetCol.classList.remove('drag-over');
+    }
+  }
+
+  function onKanbanDrop(e, newStatus) {
+    e.preventDefault();
+    var targetCol = e.currentTarget;
+    if (targetCol) targetCol.classList.remove('drag-over');
+
+    var taskId = e.dataTransfer.getData('text/plain') || draggedTaskId;
+    if (!taskId) return;
+
+    var card = document.getElementById('kanban-card-' + taskId);
+    if (card && targetCol) {
+      targetCol.appendChild(card);
+      card.classList.remove('dragging');
+      card.setAttribute('data-status', newStatus);
+    }
+
+    // Call AJAX to persist status change
+    changeTaskStatus(taskId, newStatus);
+  }
+
+  // Tab Switching
+  function switchPmTab(tab) {
+    document.querySelectorAll('.pm-tab-pane').forEach(function(pane) {
+      pane.style.display = 'none';
+    });
+    document.querySelectorAll('.pm-tab-btn').forEach(function(btn) {
+      btn.classList.remove('active');
+    });
+
+    var activePane = document.getElementById('view-' + tab);
+    var activeBtn = document.getElementById('btn-tab-' + tab);
+    if (activePane) activePane.style.display = 'block';
+    if (activeBtn) activeBtn.classList.add('active');
+  }
+
+  // Modals Open/Close
+  function openNewTaskModal() {
+    var m = document.getElementById('newTaskModalOverlay');
+    if (m) m.style.display = 'flex';
+  }
+  function closeNewTaskModal() {
+    var m = document.getElementById('newTaskModalOverlay');
+    if (m) m.style.display = 'none';
+  }
+
+  function openNewProjectModal() {
+    var m = document.getElementById('newProjectModalOverlay');
+    if (m) m.style.display = 'flex';
+  }
+  function closeNewProjectModal() {
+    var m = document.getElementById('newProjectModalOverlay');
+    if (m) m.style.display = 'none';
+  }
+
+  function openEditProjectModal() {
+    var m = document.getElementById('editProjectModalOverlay');
+    if (m) m.style.display = 'flex';
+  }
+  function closeEditProjectModal() {
+    var m = document.getElementById('editProjectModalOverlay');
+    if (m) m.style.display = 'none';
+  }
+
+  function openDeleteProjectModal() {
+    closeEditProjectModal();
+    var m = document.getElementById('deleteProjectModalOverlay');
+    if (m) m.style.display = 'flex';
+  }
+  function closeDeleteProjectModal() {
+    var m = document.getElementById('deleteProjectModalOverlay');
+    if (m) m.style.display = 'none';
+  }
+
+  // Submit New Task via AJAX
+  function submitNewTaskAjax(e) {
+    e.preventDefault();
+    var form = document.getElementById('newTaskForm');
+    var projIdEl = document.getElementById('new_project_id');
+    var targetProjectId = projIdEl ? projIdEl.value : '{{ project.id if not is_all_projects else all_projects[0].id }}';
+
+    var payload = {
+      project_id: targetProjectId,
+      title: document.getElementById('new_title').value,
+      wbs: document.getElementById('new_wbs').value,
+      assignee_name: document.getElementById('new_assignee_name').value,
+      start_date_shamsi: document.getElementById('new_start_date').value,
+      end_date_shamsi: document.getElementById('new_end_date').value,
+      duration_days: document.getElementById('new_duration').value,
+      predecessor: document.getElementById('new_predecessor').value,
+      notes: document.getElementById('new_notes').value
+    };
+
+    fetch('{{ url_for("projects.task_new") }}', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
+        'X-CSRFToken': PM_CSRF
+      },
+      body: JSON.stringify(payload)
+    })
+    .then(function(res) { return res.json(); })
+    .then(function(data) {
+      if (data.status === 'ok') {
+        if (typeof showToast === 'function') showToast(data.message, 'success');
+        closeNewTaskModal();
+        form.reset();
+        // Reload page smoothly to refresh all WBS, Gantt, and Kanban grids
+        window.location.reload();
+      } else {
+        if (typeof showToast === 'function') showToast(data.message || 'خطا در ثبت فعالیت', 'error');
+      }
+    })
+    .catch(function() {
+      // Fallback form submit
+      form.submit();
+    });
+  }
+
+  // Edit Task Modal & Fetch Data
+  function openEditTaskModal(taskId) {
+    fetch('/projects/tasks/' + taskId + '/json', {
+      headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(function(res) { return res.json(); })
+    .then(function(data) {
+      if (data.status === 'ok') {
+        document.getElementById('edit_task_id').value = data.id;
+        document.getElementById('edit_title').value = data.title || '';
+        document.getElementById('edit_wbs').value = data.wbs || '';
+        document.getElementById('edit_assignee_name').value = data.assignee_name || '';
+        document.getElementById('edit_start_date').value = data.start_date_shamsi || '';
+        document.getElementById('edit_end_date').value = data.end_date_shamsi || '';
+        document.getElementById('edit_duration').value = data.duration_days || 1;
+        document.getElementById('edit_status').value = data.task_status || 'pending';
+        document.getElementById('edit_progress').value = data.progress !== undefined ? data.progress : 0;
+        document.getElementById('edit_predecessor').value = data.predecessor || '';
+        document.getElementById('edit_notes').value = data.notes || '';
+        
+        var m = document.getElementById('editTaskModalOverlay');
+        if (m) m.style.display = 'flex';
+      }
+    })
+    .catch(function() {
+      if (typeof showToast === 'function') showToast('خطا در دریافت اطلاعات فعالیت', 'error');
+    });
+  }
+
+  function closeEditTaskModal() {
+    var m = document.getElementById('editTaskModalOverlay');
+    if (m) m.style.display = 'none';
+  }
+
+  function submitEditTaskAjax(e) {
+    e.preventDefault();
+    var taskId = document.getElementById('edit_task_id').value;
+    var payload = {
+      title: document.getElementById('edit_title').value,
+      wbs: document.getElementById('edit_wbs').value,
+      assignee_name: document.getElementById('edit_assignee_name').value,
+      start_date_shamsi: document.getElementById('edit_start_date').value,
+      end_date_shamsi: document.getElementById('edit_end_date').value,
+      duration_days: document.getElementById('edit_duration').value,
+      status: document.getElementById('edit_status').value,
+      progress: document.getElementById('edit_progress').value,
+      predecessor: document.getElementById('edit_predecessor').value,
+      notes: document.getElementById('edit_notes').value
+    };
+
+    fetch('/projects/tasks/' + taskId + '/edit', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
+        'X-CSRFToken': PM_CSRF
+      },
+      body: JSON.stringify(payload)
+    })
+    .then(function(res) { return res.json(); })
+    .then(function(data) {
+      if (data.status === 'ok') {
+        if (typeof showToast === 'function') showToast(data.message, 'success');
+        closeEditTaskModal();
+        
+        var assName = data.assignee_name || '';
+        var assInitial = (assName && assName.trim().length > 0) ? assName.trim().charAt(0) : '؟';
+
+        // Update WBS table row
+        var row = document.getElementById('task-row-' + taskId);
+        if (row) {
+          row.setAttribute('data-title', data.title);
+          row.setAttribute('data-assignee', assName);
+          row.setAttribute('data-status', data.task_status);
+          row.setAttribute('data-wbs', data.wbs);
+          row.setAttribute('data-progress', data.progress);
+          row.setAttribute('data-start', data.start_date_shamsi);
+          row.setAttribute('data-end', data.end_date_shamsi);
+          
+          var titleEl = row.querySelector('.task-title-text');
+          if (titleEl) titleEl.textContent = data.title;
+          var wbsEl = row.querySelector('.task-wbs-text');
+          if (wbsEl) wbsEl.textContent = data.wbs;
+          var assEl = row.querySelector('.task-assignee-text');
+          if (assEl) assEl.textContent = assName || 'تعیین نشده';
+          var avEl = row.querySelector('.task-avatar-circle');
+          if (avEl) avEl.textContent = assInitial;
+          var startEl = row.querySelector('.task-start-text');
+          if (startEl) startEl.textContent = toFarsiDigits(data.start_date_shamsi);
+          var endEl = row.querySelector('.task-end-text');
+          if (endEl) endEl.textContent = toFarsiDigits(data.end_date_shamsi);
+          var durEl = row.querySelector('.task-duration-text');
+          if (durEl) durEl.textContent = toFarsiDigits(data.duration_days);
+
+          var slider = document.getElementById('slider-' + taskId);
+          if (slider) {
+            slider.value = data.progress;
+            onTaskSliderInput(taskId, data.progress);
+          }
+          updateStatusSelect(taskId, data.task_status, data.progress);
+        }
+
+        // Update Kanban card
+        var kCard = document.getElementById('kanban-card-' + taskId);
+        if (kCard) {
+          kCard.setAttribute('data-title', data.title);
+          kCard.setAttribute('data-assignee', assName);
+          kCard.setAttribute('data-status', data.task_status);
+          kCard.setAttribute('data-wbs', data.wbs);
+          kCard.setAttribute('data-progress', data.progress);
+          kCard.setAttribute('data-start', data.start_date_shamsi);
+          kCard.setAttribute('data-end', data.end_date_shamsi);
+
+          var kTitle = kCard.querySelector('.kanban-title-text');
+          if (kTitle) kTitle.textContent = data.title;
+          var kWbs = kCard.querySelector('.kanban-wbs-text');
+          if (kWbs) kWbs.textContent = data.wbs;
+          var kAss = kCard.querySelector('.kanban-assignee-text');
+          if (kAss) kAss.textContent = assName || '—';
+          var kDur = kCard.querySelector('.kanban-duration-text');
+          if (kDur) kDur.textContent = toFarsiDigits(data.duration_days);
+
+          moveKanbanCard(taskId, data.task_status, data.progress);
+        }
+
+        // Update Gantt row
+        var gRow = document.getElementById('gantt-row-' + taskId);
+        if (gRow) {
+          gRow.setAttribute('data-title', data.title);
+          gRow.setAttribute('data-assignee', assName);
+          gRow.setAttribute('data-status', data.task_status);
+          gRow.setAttribute('data-wbs', data.wbs);
+          gRow.setAttribute('data-progress', data.progress);
+          gRow.setAttribute('data-start', data.start_date_shamsi);
+          gRow.setAttribute('data-end', data.end_date_shamsi);
+
+          var gTitle = gRow.querySelector('.gantt-title-text');
+          if (gTitle) gTitle.textContent = data.title;
+          var gWbs = gRow.querySelector('.gantt-wbs-text');
+          if (gWbs) gWbs.textContent = data.wbs;
+          var gAss = gRow.querySelector('.gantt-assignee-text');
+          if (gAss) gAss.textContent = assName || '—';
+
+          updateGanttRow(taskId, data.progress, data.task_status);
+        }
+
+        updateAllKpis(data.kpis);
+        refreshAssigneeFilterDropdown();
+        applySorting();
+        applyAllFilters();
+      }
+    })
+    .catch(function() {
+      if (typeof showToast === 'function') showToast('خطا در ذخیره ویرایش فعالیت', 'error');
+    });
+  }
+
+  // Delete Task AJAX
+  function deleteTaskAjax(taskId) {
+    if (!confirm('آیا از حذف این فعالیت اطمینان دارید؟')) return;
+
+    fetch('/projects/tasks/' + taskId + '/delete', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
+        'X-CSRFToken': PM_CSRF
+      }
+    })
+    .then(function(res) { return res.json(); })
+    .then(function(data) {
+      if (data.status === 'ok') {
+        if (typeof showToast === 'function') showToast(data.message, 'success');
+        
+        // Remove from WBS table
+        var row = document.getElementById('task-row-' + taskId);
+        if (row) {
+          row.style.opacity = '0';
+          setTimeout(function() { row.remove(); }, 200);
+        }
+        // Remove from Kanban
+        var kCard = document.getElementById('kanban-card-' + taskId);
+        if (kCard) {
+          kCard.style.opacity = '0';
+          setTimeout(function() { kCard.remove(); }, 200);
+        }
+        // Remove from Gantt
+        var gRow = document.getElementById('gantt-row-' + taskId);
+        if (gRow) {
+          gRow.style.opacity = '0';
+          setTimeout(function() { gRow.remove(); }, 200);
+        }
+
+        updateAllKpis(data.kpis);
+      }
+    })
+    .catch(function() {
+      if (typeof showToast === 'function') showToast('خطا در حذف فعالیت', 'error');
+    });
+  }
+
+  // Slider Input
+  function onTaskSliderInput(taskId, val) {
+    val = parseInt(val) || 0;
+    var badge = document.getElementById('task-badge-' + taskId);
+    if (badge) {
+      badge.textContent = toFarsiDigits(val) + '٪';
+      if (val >= 100) {
+        badge.style.background = '#10b981';
+        badge.style.color = '#ffffff';
+        badge.style.borderColor = '#10b981';
+      } else if (val > 0) {
+        badge.style.background = '#dbeafe';
+        badge.style.color = '#1e40af';
+        badge.style.borderColor = '#93c5fd';
+      } else {
+        badge.style.background = '#f1f5f9';
+        badge.style.color = '#475569';
+        badge.style.borderColor = '#cbd5e1';
+      }
+    }
+
+    // Dynamic local KPI & status calculation while sliding
+    var row = document.getElementById('task-row-' + taskId);
+    var derivedStatus = 'pending';
+    if (val >= 100) {
+      derivedStatus = 'completed';
+    } else if (val > 0) {
+      derivedStatus = 'in_progress';
+    }
+    
+    if (row) {
+      row.setAttribute('data-status', derivedStatus);
+      row.setAttribute('data-progress', val);
+    }
+
+    // Instant Gantt update while dragging slider
+    updateGanttRow(taskId, val, derivedStatus);
+  }
+
+  // Save Progress AJAX
+  function saveTaskProgress(taskId, val) {
+    fetch('/projects/tasks/' + taskId + '/progress', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
+        'X-CSRFToken': PM_CSRF
+      },
+      body: JSON.stringify({ progress: parseInt(val) || 0 })
+    })
+    .then(function(res) { return res.json(); })
+    .then(function(data) {
+      if (data.status === 'ok') {
+        if (typeof showToast === 'function') showToast(data.message, 'success');
+        updateStatusSelect(taskId, data.task_status, data.task_progress);
+        moveKanbanCard(taskId, data.task_status, data.task_progress);
+        updateGanttRow(taskId, data.task_progress, data.task_status);
+        updateAllKpis(data.kpis);
+      }
+    })
+    .catch(function() {
+      if (typeof showToast === 'function') showToast('خطا در ذخیره پیشرفت', 'error');
+    });
+  }
+
+  // Quick Preset buttons
+  function setTaskPreset(taskId, val) {
+    var slider = document.getElementById('slider-' + taskId);
+    if (slider) {
+      slider.value = val;
+      onTaskSliderInput(taskId, val);
+    }
+    saveTaskProgress(taskId, val);
+  }
+
+  // Status Change AJAX
+  function changeTaskStatus(taskId, status) {
+    fetch('/projects/tasks/' + taskId + '/status', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
+        'X-CSRFToken': PM_CSRF
+      },
+      body: JSON.stringify({ status: status })
+    })
+    .then(function(res) { return res.json(); })
+    .then(function(data) {
+      if (data.status === 'ok') {
+        if (typeof showToast === 'function') showToast(data.message, 'success');
+        
+        var slider = document.getElementById('slider-' + taskId);
+        if (slider) {
+          slider.value = data.task_progress;
+          onTaskSliderInput(taskId, data.task_progress);
+        }
+        updateStatusSelect(taskId, data.task_status, data.task_progress);
+        moveKanbanCard(taskId, data.task_status, data.task_progress);
+        updateGanttRow(taskId, data.task_progress, data.task_status);
+        updateAllKpis(data.kpis);
+      }
+    })
+    .catch(function() {
+      if (typeof showToast === 'function') showToast('خطا در تغییر وضعیت', 'error');
+    });
+  }
+
+  // Dynamic Gantt Row updater for percentage and status
+  function updateGanttRow(taskId, progress, status) {
+    progress = parseInt(progress) || 0;
+    var row = document.getElementById('gantt-row-' + taskId);
+    if (!row) return;
+
+    row.setAttribute('data-progress', progress);
+    row.setAttribute('data-status', status);
+
+    var fills = row.querySelectorAll('.gantt-bar-fill');
+    var badges = row.querySelectorAll('.gantt-bar-badge');
+
+    fills.forEach(function(f) {
+      f.style.width = progress + '%';
+      if (status === 'completed' || progress >= 100) {
+        f.style.background = 'linear-gradient(90deg, #10b981, #059669)';
+      } else if (status === 'delayed') {
+        f.style.background = 'linear-gradient(90deg, #ef4444, #dc2626)';
+      } else if (progress > 0 || status === 'in_progress') {
+        f.style.background = 'linear-gradient(90deg, #3b82f6, #2563eb)';
+      } else {
+        f.style.background = '#cbd5e1';
+      }
+    });
+
+    badges.forEach(function(b) {
+      if (status === 'completed' || progress >= 100) {
+        b.textContent = '۱۰۰٪ ✓';
+        b.style.color = '#ffffff';
+      } else if (status === 'delayed') {
+        b.textContent = 'تاخیر (' + toFarsiDigits(progress) + '٪)';
+        b.style.color = '#dc2626';
+      } else if (progress > 0) {
+        b.textContent = toFarsiDigits(progress) + '٪';
+        b.style.color = progress > 40 ? '#ffffff' : '#1e3a8a';
+      } else {
+        b.textContent = '۰٪';
+        b.style.color = '#64748b';
+      }
+    });
+  }
+
+  function moveKanbanCard(taskId, status, progress) {
+    var card = document.getElementById('kanban-card-' + taskId);
+    var targetCol = document.getElementById('kanban-col-' + status);
+    if (card && targetCol && card.parentElement !== targetCol) {
+      targetCol.appendChild(card);
+    }
+    if (card) {
+      card.setAttribute('data-status', status);
+      card.setAttribute('data-progress', progress);
+      card.className = 'pm-kanban-card task-row kanban-task-card';
+      if (status === 'completed' || progress >= 100) {
+        card.classList.add('border-success');
+      } else if (status === 'in_progress' || progress > 0) {
+        card.classList.add('border-primary');
+      } else if (status === 'delayed') {
+        card.classList.add('border-danger');
+      }
+
+      var badge = document.getElementById('kanban-badge-' + taskId);
+      if (badge) {
+        if (status === 'completed' || progress >= 100) {
+          badge.className = 'badge bg-success text-white';
+          badge.textContent = '۱۰۰٪ ✓';
+        } else if (status === 'delayed') {
+          badge.className = 'badge bg-light text-danger border fw-bold';
+          badge.textContent = 'تاخیر';
+        } else if (progress > 0) {
+          badge.className = 'badge bg-light text-primary border fw-bold';
+          badge.textContent = toFarsiDigits(progress) + '٪';
+        } else {
+          badge.className = 'badge bg-light text-secondary border';
+          badge.textContent = '۰٪';
+        }
+      }
+    }
+  }
+
+  function updateStatusSelect(taskId, status, progress) {
+    var sel = document.getElementById('status-select-' + taskId);
+    if (!sel) return;
+    sel.value = status;
+    sel.className = 'pm-status-select status-' + (progress >= 100 ? 'completed' : status);
+    
+    var row = document.getElementById('task-row-' + taskId);
+    if (row) {
+      row.setAttribute('data-status', status);
+      row.setAttribute('data-progress', progress);
+    }
+  }
+
+  // Master KPI Cards & Metrics Updater
+  function updateAllKpis(kpis) {
+    if (!kpis) return;
+
+    // 1. Overall Project Progress
+    if (kpis.project_progress !== undefined) {
+      var prog = kpis.project_progress;
+      var progElem = document.getElementById('overall-proj-progress');
+      var barElem = document.getElementById('overall-proj-progress-bar');
+      var badgeElem = document.getElementById('overall-proj-badge');
+      if (progElem) progElem.textContent = toFarsiDigits(prog) + '٪';
+      if (barElem) barElem.style.width = prog + '%';
+      if (badgeElem) {
+        if (prog >= 100) {
+          badgeElem.textContent = 'تکمیل شده';
+          badgeElem.className = 'badge bg-success px-2 py-1';
+        } else {
+          badgeElem.textContent = 'فعال و در جریان';
+          badgeElem.className = 'badge bg-primary px-2 py-1';
+        }
+      }
+    }
+
+    // 2. Total Tasks Count
+    if (kpis.total !== undefined) {
+      var elTotal = document.getElementById('kpi-total');
+      if (elTotal) elTotal.textContent = toFarsiDigits(kpis.total);
+      var wbsCount = document.getElementById('wbs-total-count');
+      if (wbsCount) wbsCount.textContent = toFarsiDigits(kpis.total);
+    }
+
+    // 3. Completed Tasks Count
+    if (kpis.completed !== undefined) {
+      var elComp = document.getElementById('kpi-completed');
+      if (elComp) elComp.textContent = toFarsiDigits(kpis.completed);
+      var kanbanComp = document.getElementById('kanban-count-completed');
+      if (kanbanComp) kanbanComp.textContent = toFarsiDigits(kpis.completed);
+    }
+
+    // 4. In Progress Tasks Count
+    if (kpis.in_progress !== undefined) {
+      var elProg = document.getElementById('kpi-inprogress');
+      if (elProg) elProg.textContent = toFarsiDigits(kpis.in_progress);
+      var kanbanProg = document.getElementById('kanban-count-inprogress');
+      if (kanbanProg) kanbanProg.textContent = toFarsiDigits(kpis.in_progress);
+    }
+
+    // 5. Pending Tasks Count
+    if (kpis.pending !== undefined) {
+      var elPend = document.getElementById('kpi-pending');
+      if (elPend) elPend.textContent = toFarsiDigits(kpis.pending);
+      var kanbanPend = document.getElementById('kanban-count-pending');
+      if (kanbanPend) kanbanPend.textContent = toFarsiDigits(kpis.pending);
+    }
+
+    // 6. Delayed Tasks Count
+    if (kpis.delayed !== undefined) {
+      var kanbanDely = document.getElementById('kanban-count-delayed');
+      if (kanbanDely) kanbanDely.textContent = toFarsiDigits(kpis.delayed);
+    }
+  }
+
+  // Dynamic Sorter for WBS Table, Kanban Columns, and Gantt Table
+  function applySorting() {
+    var sortBy = document.getElementById('sortBy') ? document.getElementById('sortBy').value : 'wbs';
+
+    function compareElements(a, b) {
+      if (sortBy === 'assignee') {
+        var nameA = (a.getAttribute('data-assignee') || '').trim();
+        var nameB = (b.getAttribute('data-assignee') || '').trim();
+        if (!nameA && nameB) return 1;
+        if (nameA && !nameB) return -1;
+        return nameA.localeCompare(nameB, 'fa');
+      } else if (sortBy === 'progress_desc') {
+        var pA = parseInt(a.getAttribute('data-progress')) || 0;
+        var pB = parseInt(b.getAttribute('data-progress')) || 0;
+        return pB - pA;
+      } else if (sortBy === 'progress_asc') {
+        var pA = parseInt(a.getAttribute('data-progress')) || 0;
+        var pB = parseInt(b.getAttribute('data-progress')) || 0;
+        return pA - pB;
+      } else if (sortBy === 'project') {
+        var prjA = (a.getAttribute('data-project') || '').trim();
+        var prjB = (b.getAttribute('data-project') || '').trim();
+        return prjA.localeCompare(prjB, 'fa');
+      } else if (sortBy === 'start_date') {
+        var sA = (a.getAttribute('data-start') || '').trim();
+        var sB = (b.getAttribute('data-start') || '').trim();
+        return sA.localeCompare(sB);
+      } else if (sortBy === 'end_date') {
+        var eA = (a.getAttribute('data-end') || '').trim();
+        var eB = (b.getAttribute('data-end') || '').trim();
+        return eA.localeCompare(eB);
+      } else { // 'wbs'
+        var wA = (a.getAttribute('data-wbs') || '').split('.');
+        var wB = (b.getAttribute('data-wbs') || '').split('.');
+        var numA1 = parseInt(wA[0]) || 0;
+        var numB1 = parseInt(wB[0]) || 0;
+        if (numA1 !== numB1) return numA1 - numB1;
+        var numA2 = parseInt(wA[1]) || 0;
+        var numB2 = parseInt(wB[1]) || 0;
+        return numA2 - numB2;
+      }
+    }
+
+    // 1. Sort WBS Table
+    var wbsTbody = document.getElementById('wbsTableBody');
+    if (wbsTbody) {
+      var rows = Array.from(wbsTbody.querySelectorAll('tr.wbs-task-row'));
+      rows.sort(compareElements);
+      rows.forEach(function(r) { wbsTbody.appendChild(r); });
+    }
+
+    // 2. Sort Kanban Columns
+    document.querySelectorAll('.pm-kanban-col-body').forEach(function(col) {
+      var cards = Array.from(col.querySelectorAll('.kanban-task-card'));
+      cards.sort(compareElements);
+      cards.forEach(function(c) { col.appendChild(c); });
+    });
+
+    // 3. Sort Gantt Table
+    var ganttTbody = document.getElementById('ganttTableBody');
+    if (ganttTbody) {
+      var gRows = Array.from(ganttTbody.querySelectorAll('tr.gantt-task-row'));
+      gRows.sort(compareElements);
+      gRows.forEach(function(r) { ganttTbody.appendChild(r); });
+    }
+
+    applyAllFilters();
+  }
+
+  // Unified Multi-Filter for WBS Table, Kanban Board, and Gantt Timeline
+  function applyAllFilters() {
+    var assignee = (document.getElementById('assigneeFilter').value || '').trim().toLowerCase();
+    var status = (document.getElementById('statusFilter').value || '').trim();
+    var search = (document.getElementById('pmSearch').value || '').trim().toLowerCase();
+
+    var rows = document.querySelectorAll('.task-row');
+    rows.forEach(function(r) {
+      var rAssignee = (r.getAttribute('data-assignee') || '').toLowerCase();
+      var rStatus = (r.getAttribute('data-status') || '');
+      var rTitle = (r.getAttribute('data-title') || '').toLowerCase();
+      var rWbs = (r.getAttribute('data-wbs') || '').toLowerCase();
+      var rProject = (r.getAttribute('data-project') || '').toLowerCase();
+
+      var matchAssignee = !assignee || (rAssignee.indexOf(assignee) !== -1);
+      var matchStatus = !status || (rStatus === status);
+      var matchSearch = !search || (rTitle.indexOf(search) !== -1 || rAssignee.indexOf(search) !== -1 || rWbs.indexOf(search) !== -1 || rProject.indexOf(search) !== -1);
+
+      if (matchAssignee && matchStatus && matchSearch) {
+        r.style.display = '';
+      } else {
+        r.style.display = 'none';
+      }
+    });
+  }
+
+  // Dynamic Assignee Filter Dropdown Refresh
+  function refreshAssigneeFilterDropdown() {
+    var sel = document.getElementById('assigneeFilter');
+    if (!sel) return;
+    var currentVal = sel.value;
+    var counts = {};
+    document.querySelectorAll('tr.wbs-task-row').forEach(function(r) {
+      var name = (r.getAttribute('data-assignee') || '').trim();
+      if (name) {
+        counts[name] = (counts[name] || 0) + 1;
+      }
+    });
+
+    sel.innerHTML = '<option value="">👤 همه مسئولین</option>';
+    Object.keys(counts).sort(function(a, b) { return a.localeCompare(b, 'fa'); }).forEach(function(name) {
+      var opt = document.createElement('option');
+      opt.value = name;
+      opt.textContent = name + ' (' + toFarsiDigits(counts[name]) + ')';
+      if (name === currentVal) opt.selected = true;
+      sel.appendChild(opt);
+    });
+  }
+
+  function toFarsiDigits(n) {
+    if (n === null || n === undefined) return '';
+    var farsiDigits = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'];
+    return n.toString().replace(/[0-9]/g, function(d) {
+      return farsiDigits[d];
+    });
+  }
+
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+      closeNewTaskModal();
+      closeEditTaskModal();
+      closeNewProjectModal();
+      closeEditProjectModal();
+      closeDeleteProjectModal();
+    }
+  });
+</script>
+{% endblock %}

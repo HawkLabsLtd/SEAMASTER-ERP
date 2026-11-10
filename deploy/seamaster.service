@@ -1,0 +1,17 @@
+[Unit]
+Description=Seamaster Flask Application (Gunicorn)
+After=network.target
+
+[Service]
+User=root
+Group=root
+WorkingDirectory=/opt/seamaster
+Environment=FLASK_ENV=production
+Environment=PYTHONPATH=/opt/seamaster
+Environment=PATH=/opt/seamaster/.venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+ExecStart=/opt/seamaster/.venv/bin/gunicorn --workers 4 --bind 127.0.0.1:8000 --timeout 120 --access-logfile - --error-logfile - app:app
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

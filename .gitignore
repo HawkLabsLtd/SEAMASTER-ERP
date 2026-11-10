@@ -1,0 +1,44 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+
+# Secrets / environment
+.env
+.env.*
+!.env.example
+deploy/.env.production*
+
+# Runtime data (databases, recordings, backups)
+instance/
+*.db
+*.db-shm
+*.db-wal
+*.webm
+5S-Backup-*.json
+
+# Business data (HR, email, budget, council, members) - kept out of version control
+data/*
+!data/README.md
+energy/
+events-general/
+managerial-council/
+members-birthdays/
+Dashboards/
+*.json
+!package.json
+*.csv
+*.xlsx
+*.xls
+~$*
+
+# Generated output / local leftovers
+omoor_gharardadha_binder_labels.html
+excel_analysis.txt
+generate_omoor_gharardadha_labels.py
+system-instruction.md
+
+# Local tool config
+.claude/

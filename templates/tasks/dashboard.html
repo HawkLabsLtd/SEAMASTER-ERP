@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-4">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="text-white fw-bold"><i class="fas fa-tasks me-2"></i>مدیریت وظایف</h2>
+        {% if current_user.role in ['admin', 'manager'] %}
+        <a href="{{ url_for('tasks.new') }}" class="btn btn-primary shadow-sm">
+            <i class="fas fa-plus me-1"></i> تعریف وظیفه جدید
+        </a>
+        {% endif %}
+    </div>
+
+    <!-- My Tasks Section -->
+    <div class="row mb-5">
+        <div class="col-12">
+            <div class="glass-card mb-4">
+                <div class="card-header bg-transparent border-bottom border-secondary py-3">
+                    <h5 class="text-dark mb-0"><i class="fas fa-user-check me-2"></i>وظایف من</h5>
+                </div>
+                <div class="card-body">
+                    {% if my_tasks %}
+                    <div class="list-group list-group-flush bg-transparent">
+                        {% for task in my_tasks %}
+                        <div
+                            class="list-group-item bg-transparent border-secondary d-flex justify-content-between align-items-center px-0 py-3">
+                            <div>
+                                <h6 class="text-dark fw-bold mb-1">{{ task.title }}</h6>
+                                <small class="text-muted">
+                                    {% if task.due_date %}
+                                    <i class="fas fa-calendar-alt text-warning ms-1"></i>{{
+                                    format_jalali_date_any(task.due_date) }}
+                                    {% endif %}
+                                </small>
+                            </div>
+                            <form action="{{ url_for('tasks.toggle', id=task.id) }}" method="POST" class="d-inline"
+                                onsubmit="return handleMyTaskToggle(event, {{ task.id }})" title="تکمیل">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                                <button type="submit" id="my-task-btn-{{ task.id }}"
+                                    class="btn btn-outline-success btn-sm rounded-circle p-0 d-inline-flex align-items-center justify-content-center shadow-sm"
+                                    style="width: 32px; height: 32px;">
+                                    <i class="fas fa-check"></i>
+                                </button>
+                            </form>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="text-dark text-center py-3" id="no-my-tasks-msg">شما وظیفه فعال و تکمیل‌نشده‌ای ندارید.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- All Tasks Table -->
+    {% if all_tasks %}
+    <div class="glass-table-container">
+        <h5 class="text-white mb-3"><i class="fas fa-list me-2"></i>آخرین وظایف ثبت شده</h5>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead>
+                    <tr>
+                        <th>عنوان</th>
+                        <th>وضعیت</th>
+                        <th>مسئول انجام</th>
+                        <th>سررسید</th>
+                        <th>عملیات</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for task in all_tasks %}
+                    <tr id="all-task-row-{{ task.id }}">
+                        <td class="fw-bold">{{ task.title }}</td>
+                        <td>
+                            {% if task.status == 'completed' %}
+                            <span class="badge bg-success">تکمیل شده</span>
+                            {% else %}
+                            <span class="badge bg-warning text-dark">در انتظار</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ task.assigned_to.name if task.assigned_to else 'تعیین نشده' }}</td>
+                        <td>{{ format_jalali_date_any(task.due_date) if task.due_date else '-' }}</td>
+                        <td>
+                            {% if current_user.role in ['admin', 'manager'] %}
+                            <div class="d-flex gap-2">
+                                <a href="{{ url_for('tasks.edit', id=task.id) }}"
+                                    class="btn btn-sm btn-info text-white d-inline-flex align-items-center justify-content-center shadow-sm"
+                                    style="width: 32px; height: 32px; padding: 0;" title="ویرایش">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <form action="{{ url_for('tasks.delete', id=task.id) }}" method="POST" class="d-inline"
+                                    data-ajax-delete="true" data-confirm="آیا از حذف این وظیفه اطمینان دارید؟">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                                    <button type="submit"
+                                        class="btn btn-sm btn-danger text-white d-inline-flex align-items-center justify-content-center shadow-sm"
+                                        style="width: 32px; height: 32px; padding: 0;" title="حذف">
+                                        <i class="fas fa-trash-alt"></i>
+                                    </button>
+                                </form>
+                            </div>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+  function handleMyTaskToggle(e, taskId) {
+    e.preventDefault();
+    var form = e.target;
+    var row = form.closest('.list-group-item');
+    var btn = document.getElementById('my-task-btn-' + taskId);
+    
+    if (btn) {
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+      btn.disabled = true;
+    }
+
+    var formData = new FormData(form);
+    fetch(form.action, {
+      method: 'POST',
+      body: formData,
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest',
+        'Accept': 'application/json'
+      }
+    })
+    .then(function(res) {
+      if (!res.ok) throw new Error('خطا در تغییر وضعیت');
+      return res.json();
+    })
+    .then(function(data) {
+      if (row) {
+        row.style.transition = 'all 0.35s ease';
+        row.style.opacity = '0';
+        row.style.transform = 'scale(0.95) translateX(-20px)';
+        setTimeout(function() { row.remove(); }, 350);
+      }
+      if (typeof showToast === 'function') {
+        showToast('وظیفه به «تکمیل شده» تغییر یافت و از فهرست کارهای فعال برداشته شد ✓', 'success');
+      }
+    })
+    .catch(function(err) {
+      if (btn) {
+        btn.innerHTML = '<i class="fas fa-check"></i>';
+        btn.disabled = false;
+      }
+      if (typeof showToast === 'function') {
+        showToast('خطا در ثبت تغییر وضعیت', 'error');
+      }
+    });
+
+    return false;
+  }
+</script>
+{% endblock %}

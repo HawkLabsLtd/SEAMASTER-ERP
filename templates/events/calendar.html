@@ -1,0 +1,70 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="page-header">
+    <h2>تقویم رویدادها - {{ month_title }}</h2>
+    <p class="muted">رویدادها از فایل CSV بارگذاری شده‌اند.</p>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        {% for wd in weekdays_fa %}
+                        <th>
+                          <a href="{{ url_for('main_bp.events_calendar', dow=loop.index0) }}" class="weekday-link {% if active_dow is not none and active_dow == loop.index0 %}active{% endif %}">{{ wd }}</a>
+                        </th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for week in weeks %}
+                    <tr>
+                        {% for day in week %}
+                        <td class="calendar-cell">
+                            {% if day != 0 %}
+                            <div class="day-number">{{ to_farsi_digits(day) }}</div>
+                            <div class="events-list">
+                                {% for ev in events_by_day.get(day, []) %}
+                                <div class="event-item">
+                                    <div class="event-title">{{ ev.title }}</div>
+                                    <div class="event-meta">
+                                        <div class="event-datetime">{{ format_jalali_datetime(ev.start) }} <span class="arrow">←</span> {{ format_jalali_datetime(ev.end) }}</div>
+                                        {% if ev.location %}<span class="badge badge-secondary">{{ ev.location }}</span>{% endif %}
+                                        {% if ev.meet_link %}<a href="{{ ev.meet_link }}" target="_blank" class="badge badge-success">لینک جلسه</a>{% endif %}
+                                        {% if ev.calendar_link %}<a href="{{ ev.calendar_link }}" target="_blank" class="badge badge-light">تقویم</a>{% endif %}
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                        </td>
+                        {% endfor %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <div class="card-footer">
+        <small>تقویم مبتنی بر ماه میلادی نمایش داده می‌شود.</small>
+    </div>
+</div>
+
+<style>
+/* Minimal calendar-specific helpers within template to avoid broad CSS changes */
+.calendar-cell { vertical-align: top; min-height: 140px; }
+.day-number { font-weight: 700; margin-bottom: 8px; color: var(--text-muted); }
+.event-item { margin-bottom: 8px; }
+.event-title { font-size: 0.95rem; font-weight: 600; }
+.event-meta { margin-top: 4px; }
+.badge + .badge { margin-right: 4px; }
+.weekday-link { color: inherit; text-decoration: none; padding: 4px 8px; border-radius: 999px; }
+.weekday-link.active { background: #eef2ff; color: #3730a3; }
+@media (max-width: 768px) {
+  .calendar-cell { min-height: auto; }
+  .event-title { font-size: 0.9rem; }
+}
+</style>
+{% endblock %}

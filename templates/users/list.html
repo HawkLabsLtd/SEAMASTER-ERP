@@ -1,0 +1,129 @@
+{% extends 'base.html' %}
+{% block title %}مسئولان اجرایی{% endblock %}
+
+{% block content %}
+<div class="dashboard-page-container">
+  <div class="page-header d-flex align-items-center justify-content-between mb-4 flex-wrap gap-3">
+    <div>
+      <h2 class="page-title mb-1"><i class="fas fa-user-tie text-primary me-2"></i> فهرست مسئولان اجرایی</h2>
+      <p class="text-muted small mb-0">مدیریت اعضا و مسئولان پیگیری مصوبات و وظایف سازمانی</p>
+    </div>
+    <div class="d-flex gap-2 align-items-center">
+      <a href="{{ url_for('users_bp.user_new') }}" class="btn btn-primary">
+        <i class="fas fa-user-plus me-1"></i> افزودن مسئول جدید
+      </a>
+      <a href="{{ url_for('main_bp.index') }}" class="btn btn-secondary">
+        <i class="fas fa-home me-1"></i> داشبورد
+      </a>
+    </div>
+  </div>
+
+  <div class="card agenda-card">
+    <div class="agenda-card-header d-flex align-items-center justify-content-between flex-wrap gap-3">
+      <div style="flex: 1; max-width: 360px;">
+        <input type="text" class="form-control form-control-sm" data-table-filter="#usersTable" placeholder="🔍 جستجوی مسئول یا ایمیل...">
+      </div>
+      <span class="badge badge-secondary px-3 py-2" style="font-size: 13px;">
+        تعداد افراد: {{ to_farsi_digits(users|length) }}
+      </span>
+    </div>
+
+    <div class="agenda-card-body p-0">
+      {% if users %}
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0" id="usersTable">
+          <thead>
+            <tr>
+              <th>نام و عنوان مسئول</th>
+              <th>نام کاربری ورود</th>
+              <th>پست الکترونیکی</th>
+              <th>وضعیت ورود</th>
+              <th>نقش سامانه</th>
+              <th class="text-center">عملیات</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for u in users %}
+            <tr id="user-row-{{ u.id }}">
+              <td>
+                <div class="d-flex align-items-center gap-3">
+                  <div class="avatar-circle-sm" style="width: 38px; height: 38px; border-radius: 50%; background: linear-gradient(135deg, #1e3a8a, #3b82f6); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px;">
+                    {{ u.name[0] if u.name else 'U' }}
+                  </div>
+                  <div>
+                    <span class="fw-bold text-dark d-block" style="font-size: 13px;">{{ u.name | e }}</span>
+                  </div>
+                </div>
+              </td>
+              <td>
+                {% if u.username %}
+                <span class="badge badge-light text-primary" style="font-size: 12px; font-family: monospace; direction: ltr;">
+                  @{{ u.username }}
+                </span>
+                {% else %}
+                <span class="text-muted small">—</span>
+                {% endif %}
+              </td>
+              <td>
+                <span class="text-muted small">
+                  {{ u.email | e or '—' }}
+                </span>
+              </td>
+              <td>
+                {% if u.is_login_enabled and u.password_hash %}
+                <span class="badge bg-success" style="font-size: 11.5px; border-radius: 12px; padding: 4px 8px;">
+                  <i class="fas fa-check-circle me-1"></i> فعال
+                </span>
+                {% else %}
+                <span class="badge bg-secondary" style="font-size: 11.5px; border-radius: 12px; padding: 4px 8px;">
+                  <i class="fas fa-minus-circle me-1"></i> غیرفعال
+                </span>
+                {% endif %}
+              </td>
+              <td>
+                {% if u.role == 'admin' %}
+                <span class="badge bg-danger" style="font-size: 11.5px;">مدیر ارشد</span>
+                {% elif u.role == 'manager' %}
+                <span class="badge bg-primary" style="font-size: 11.5px;">مدیر بخش</span>
+                {% else %}
+                <span class="badge badge-light" style="font-size: 11.5px; border: 1px solid #cbd5e1;">مسئول اجرایی</span>
+                {% endif %}
+              </td>
+              <td class="text-center">
+                <div class="d-inline-flex gap-2 align-items-center">
+                  <a href="{{ url_for('users_bp.user_edit', user_id=u.id) }}" 
+                    class="btn btn-sm btn-info text-white d-inline-flex align-items-center justify-content-center shadow-sm" 
+                    style="border-radius: 8px; padding: 5px 12px; font-size: 12px;" title="ویرایش اطلاعات و دسترسی‌ها">
+                    <i class="fas fa-user-edit me-1"></i> ویرایش و دسترسی
+                  </a>
+                  <form method="post" action="{{ url_for('users_bp.user_delete', user_id=u.id) }}" class="d-inline mb-0" data-ajax-delete="true" data-confirm="آیا از حذف این مسئول اطمینان دارید؟">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <button type="submit" class="btn btn-sm btn-outline-danger d-inline-flex align-items-center justify-content-center shadow-sm" style="border-radius: 8px; padding: 5px 9px; font-size: 12px;" title="حذف مسئول">
+                      <i class="fas fa-trash-alt"></i>
+                    </button>
+                  </form>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="p-5 text-center text-muted">
+        <i class="fas fa-users-slash fa-3x mb-3 text-secondary opacity-50"></i>
+        <h5 class="fw-bold">هیچ مسئولی ثبت نشده است</h5>
+        <p class="small text-muted">برای تخصیص مصوبات و وظایف می‌توانید مسئولان جدید اضافه کنید.</p>
+        <a href="{{ url_for('users_bp.user_new') }}" class="btn btn-primary btn-sm mt-2">
+          <i class="fas fa-plus me-1"></i> افزودن اولین مسئول
+        </a>
+      </div>
+      {% endif %}
+    </div>
+
+    <div class="card-footer bg-light p-3 text-muted small">
+      <i class="fas fa-info-circle text-primary me-1"></i> برای تخصیص مصوبه‌ها و وظایف اجرایی، می‌توانید از همین لیست افراد مسئول را مدیریت کنید.
+    </div>
+  </div>
+</div>
+{% endblock %}

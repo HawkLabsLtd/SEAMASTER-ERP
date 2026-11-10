@@ -1,0 +1,115 @@
+{% extends 'base.html' %}
+{% block title %}{{ 'ویرایش مصوبه' if resolution else 'افزودن مصوبه جدید' }}{% endblock %}
+
+{% block content %}
+<div class="dashboard-page-container" style="max-width: 860px; margin: 10px auto 40px auto;">
+
+  <!-- Form Hero Banner -->
+  <div class="today-hero-card mb-4">
+    <div class="today-hero-content">
+      <div class="today-hero-icon-box">
+        <i class="fas fa-gavel"></i>
+      </div>
+      <div class="today-hero-text">
+        <h2 class="today-hero-title">{{ 'ویرایش اطلاعات مصوبه' if resolution else 'ثبت مصوبه جدید' }}</h2>
+        <p class="today-hero-subtitle">سامانه نظارت بر تکالیف، مسئولیت‌ها و درصد پیشرفت مصوبات {{ org_name }}</p>
+      </div>
+    </div>
+    
+    <div class="today-hero-actions">
+      <a href="{{ url_for('resolutions_bp.resolutions_list') }}" class="btn btn-hero-action">
+        <i class="fas fa-arrow-right me-1"></i> فهرست مصوبات
+      </a>
+      <a href="{{ url_for('meetings_bp.meeting_list') }}" class="btn btn-hero-action">
+        <i class="fas fa-handshake me-1"></i> جلسات
+      </a>
+    </div>
+  </div>
+
+  <!-- Form Card -->
+  <div class="card agenda-card">
+    <div class="agenda-card-header">
+      <div class="agenda-header-title-box">
+        <div class="agenda-icon-wrapper icon-resolutions">
+          <i class="fas fa-file-contract"></i>
+        </div>
+        <div>
+          <h3 class="agenda-card-title">مشخصات و تخصیص مصوبه</h3>
+          <span class="agenda-card-sub">ثبت جزئیات اجرایی، تعیین مسئول و موعد اقدام</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="agenda-card-body p-4">
+      <form method="post">
+        
+        <div class="form-group mb-3">
+          <label class="form-label fw-bold small text-dark"><i class="fas fa-heading text-primary me-1"></i> عنوان مصوبه <span class="text-danger">*</span></label>
+          <input type="text" name="title" class="form-control" value="{{ resolution.title | e if resolution else '' }}" placeholder="مثال: پیگیری تفاهم‌نامه همکاری با تشکل‌های اقتصادی..." required>
+        </div>
+
+        <div class="form-group mb-3">
+          <label class="form-label fw-bold small text-dark"><i class="fas fa-handshake text-primary me-1"></i> جلسه مربوطه <span class="text-danger">*</span></label>
+          <select name="meeting_id" class="form-select" required>
+            {% for m in meetings %}
+            <option value="{{ m.id }}" {% if resolution and m.id == resolution.meeting_id %}selected{% endif %}>
+              {{ m.title }} — {{ format_jalali_date_any(m.scheduled_at) }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="form-group mb-3">
+          <label class="form-label fw-bold small text-dark"><i class="fas fa-align-right text-primary me-1"></i> شرح تفصیلی مصوبه و اقدامات لازم</label>
+          <textarea name="description" class="form-control" rows="3" placeholder="توضیحات و اقدامات مورد انتظار...">{{ resolution.description | e if resolution else '' }}</textarea>
+        </div>
+
+        <div class="row g-3 mb-3">
+          <div class="col-md-6">
+            <label class="form-label fw-bold small text-dark"><i class="fas fa-user-tie text-primary me-1"></i> مسئول پیگیری و اجرا</label>
+            <select name="assigned_to_user_id" class="form-select">
+              <option value="">انتخاب مسئول...</option>
+              {% for u in users %}
+              <option value="{{ u.id }}" {% if resolution and resolution.assigned_to_user_id == u.id %}selected{% endif %}>{{ u.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="col-md-6">
+            <label class="form-label fw-bold small text-dark"><i class="far fa-calendar-alt text-primary me-1"></i> تاریخ سررسید (شمسی)</label>
+            <input type="text" name="due_date" class="form-control" placeholder="۱۴۰۴-۰۸-۱۵" value="{% if resolution and resolution.due_date %}{{ format_jalali_ymd(resolution.due_date) }}{% endif %}">
+          </div>
+        </div>
+
+        <div class="row g-3 mb-4">
+          <div class="col-md-6">
+            <label class="form-label fw-bold small text-dark"><i class="fas fa-tag text-primary me-1"></i> وضعیت مصوبه</label>
+            <select name="status" class="form-select">
+              {% set st = resolution.status if resolution else 'pending' %}
+              <option value="pending" {% if st == 'pending' %}selected{% endif %}>در انتظار (Pending)</option>
+              <option value="approved" {% if st == 'approved' %}selected{% endif %}>تأیید شده (Approved)</option>
+              <option value="in_progress" {% if st == 'in_progress' %}selected{% endif %}>در حال انجام (In Progress)</option>
+              <option value="completed" {% if st == 'completed' %}selected{% endif %}>تکمیل شده (Completed)</option>
+            </select>
+          </div>
+
+          <div class="col-md-6">
+            <label class="form-label fw-bold small text-dark"><i class="fas fa-percentage text-primary me-1"></i> درصد پیشرفت اقدام</label>
+            <input type="number" name="progress" min="0" max="100" class="form-control" value="{{ resolution.progress if resolution else 0 }}">
+          </div>
+        </div>
+
+        <div class="d-flex align-items-center gap-2 pt-2 border-top">
+          <button type="submit" class="btn btn-save-profile" style="min-width: 140px;">
+            <i class="fas fa-check me-1"></i> {{ 'ذخیره تغییرات' if resolution else 'افزودن مصوبه' }}
+          </button>
+          <a class="btn btn-secondary" href="{{ url_for('resolutions_bp.resolutions_list') }}" style="border-radius: 10px; padding: 10px 18px;">
+            انصراف
+          </a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

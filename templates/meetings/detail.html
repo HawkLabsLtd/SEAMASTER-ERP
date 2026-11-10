@@ -1,0 +1,1325 @@
+{% extends 'base.html' %}
+{% block title %}جزئیات جلسه — {{ meeting.title }}{% endblock %}
+
+{% block content %}
+<div class="dashboard-page-container">
+
+  <!-- Executive Meeting Hero Banner -->
+  <div class="today-hero-card mb-4">
+    <div class="today-hero-content">
+      <div class="today-hero-icon-box">
+        <i class="fas fa-handshake"></i>
+      </div>
+      <div class="today-hero-text">
+        <div class="today-hero-title-row">
+          <h2 class="today-hero-title">{{ meeting.title | e }}</h2>
+          <span class="live-clock-pill">
+            <i class="far fa-calendar-alt me-1"></i> تاریخ برگزاری: {{ format_jalali_date_any(meeting.scheduled_at) }}
+          </span>
+        </div>
+        <p class="today-hero-subtitle">
+          {{ meeting.description | e if meeting.description else 'نشست رسمی و مصوبات ابلاغی {{ org_name }}' }}
+        </p>
+
+        <!-- Stats Pills -->
+        <div class="today-stats-pills">
+          <div class="stat-pill pill-resolutions">
+            <i class="fas fa-file-contract"></i>
+            <span><strong>{{ to_farsi_digits(meeting.resolutions|length) }}</strong> مصوبه مصوب</span>
+          </div>
+          <div class="stat-pill pill-events">
+            <i class="far fa-clock"></i>
+            <span>زمان‌بندی: {{ format_jalali_datetime(meeting.scheduled_at) }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="today-hero-actions">
+      <a href="{{ url_for('meetings_bp.meeting_edit', meeting_id=meeting.id) }}" class="btn btn-hero-action">
+        <i class="fas fa-edit me-1"></i> ویرایش جلسه
+      </a>
+      <a href="{{ url_for('meetings_bp.meeting_list') }}" class="btn btn-hero-action">
+        <i class="fas fa-arrow-right me-1"></i> فهرست جلسات
+      </a>
+    </div>
+  </div>
+
+  <!-- Live WebRTC Meeting Audio Conference Bar -->
+  <div class="card agenda-card mb-4 meeting-audio-conference-card" id="meeting-audio-panel">
+    <div class="agenda-card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+      <div class="agenda-header-title-box">
+        <div class="agenda-icon-wrapper icon-audio-room">
+          <i class="fas fa-headset"></i>
+        </div>
+        <div>
+          <h3 class="agenda-card-title">اتاق گفتگوی صوتی زنده جلسه</h3>
+          <span class="agenda-card-sub">مکالمه صوتی شفاف، بدون تاخیر و رمزنگاری‌شده با سایر حاضرین در جلسه</span>
+        </div>
+      </div>
+      <div class="d-flex align-items-center gap-2">
+        <span id="audio-recording-badge" class="badge bg-danger text-white px-3 py-2 d-none pulse-recording-badge" style="border-radius: 20px;">
+          <i class="fas fa-circle pulse-dot text-white me-1"></i> در حال ضبط: <span id="audio-recording-timer">00:00</span>
+        </span>
+        <span id="audio-status-badge" class="badge bg-secondary-subtle text-secondary px-3 py-2">
+          <i class="fas fa-circle-notch me-1"></i> آفلاین
+        </span>
+        <span class="badge bg-primary px-3 py-2 text-white" style="font-size: 12px; border-radius: 20px;">
+          <i class="fas fa-users me-1"></i> <span id="audio-participants-count">{{ active_audio_participants|length if active_audio_participants else 0 }}</span> حاضر در صوت
+        </span>
+      </div>
+    </div>
+
+    <div class="agenda-card-body">
+      <!-- Error Alert Box -->
+      <div id="audio-error-alert" class="alert alert-danger d-none mb-3" role="alert"></div>
+
+      <!-- Controls Row -->
+      <div class="d-flex align-items-center justify-content-between flex-wrap gap-3 mb-3">
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+          <button type="button" id="btn-audio-join" class="btn btn-primary px-4 py-2">
+            <i class="fas fa-headphones-alt me-1"></i> ورود به گفتگوی صوتی جلسه
+          </button>
+          
+          <button type="button" id="btn-audio-mute" class="btn btn-outline-primary px-3 py-2 d-none">
+            <i class="fas fa-microphone me-1"></i> میکروفون فعال
+          </button>
+
+          <button type="button" id="btn-audio-record" class="btn btn-outline-danger px-3 py-2">
+            <i class="fas fa-record-vinyl me-1"></i> ضبط صوت جلسه
+          </button>
+
+          <button type="button" id="btn-audio-leave" class="btn btn-danger px-3 py-2 d-none">
+            <i class="fas fa-phone-slash me-1"></i> خروج از صوت
+          </button>
+        </div>
+
+        <!-- Voice Level Meter -->
+        <div class="audio-level-wrapper flex-grow-1" style="max-width: 260px;">
+          <div class="d-flex justify-content-between small text-muted mb-1">
+            <span>سیگنال صدای شما:</span>
+            <span class="small text-muted"><i class="fas fa-wave-square text-success"></i> زنده</span>
+          </div>
+          <div class="progress audio-progress-container" style="height: 6px; background-color: rgba(148, 163, 184, 0.2); border-radius: 4px;">
+            <div id="audio-level-bar" class="progress-bar bg-success" role="progressbar" style="width: 0%; transition: width 0.1s ease;"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Live Recorded Audio Playback & Re-download Box (Displays when recording completes) -->
+      <div id="audio-recording-playback-card" class="alert alert-success d-none mb-3 p-3 border-0 shadow-sm" style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.12), rgba(6, 182, 212, 0.12)); border-radius: 12px;">
+        <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+          <div class="d-flex align-items-center gap-2">
+            <div class="recording-icon-done" style="width: 38px; height: 38px; border-radius: 50%; background: #d1fae5; display: flex; align-items: center; justify-content: center;">
+              <i class="fas fa-file-audio fa-lg text-success"></i>
+            </div>
+            <div>
+              <div class="fw-bold text-dark" style="font-size: 13.5px;">فایل صوتی جلسه با موفقیت ضبط شد ✓</div>
+              <div class="small text-muted">می‌توانید فایل را به طور مستقیم در مرورگر گوش دهید یا از دکمه‌های زیر دریافت نمایید.</div>
+            </div>
+          </div>
+          <div class="d-flex align-items-center gap-2 flex-wrap">
+            <audio id="audio-recorded-player" controls style="height: 36px; max-width: 240px;"></audio>
+            <a id="btn-download-recorded-audio" href="#" download="meeting_recording.webm" class="btn btn-sm btn-success px-3 py-2">
+              <i class="fas fa-download me-1"></i> دریافت فایل صوتی
+            </a>
+            <a id="btn-server-download-recorded-audio" href="#" download="" class="btn btn-sm btn-outline-success px-3 py-2 d-none">
+              <i class="fas fa-cloud-download-alt me-1"></i> دانلود از سرور
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Active Voice Participants List -->
+      <div class="audio-participants-container">
+        <div class="small text-muted mb-2 fw-bold">حاضرین در اتاق صوتی:</div>
+        <div id="audio-participants-list" class="d-flex align-items-center gap-2 flex-wrap">
+          {% if active_audio_participants %}
+            {% for p in active_audio_participants %}
+              <div class="audio-participant-chip {{ 'chip-self' if current_user and p.user_id == current_user.id else '' }}">
+                <div class="audio-avatar"><i class="fas fa-user"></i></div>
+                <div class="audio-participant-info">
+                  <span class="audio-participant-name">{{ p.user_name }} {{ '(شما)' if current_user and p.user_id == current_user.id else '' }}</span>
+                  <span class="audio-participant-role">{{ 'مدیر ارشد' if p.role == 'admin' else ('مدیر' if p.role == 'manager' else 'عضو') }}</span>
+                </div>
+                {% if p.is_muted %}
+                  <span class="badge bg-danger-subtle text-danger ms-2"><i class="fas fa-microphone-slash"></i> بی‌صدا</span>
+                {% else %}
+                  <span class="badge bg-success-subtle text-success ms-2"><i class="fas fa-microphone"></i> فعال</span>
+                {% endif %}
+              </div>
+            {% endfor %}
+          {% else %}
+            <div class="text-muted small text-center py-2 w-100">
+              <i class="fas fa-user-friends me-1"></i> هنوز کاربری وارد اتاق صوتی نشده است. برای پیوستن روی «ورود به گفتگوی صوتی جلسه» کلیک کنید.
+            </div>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Hidden container for remote WebRTC audio streams -->
+      <div id="audio-remote-streams" style="display: none;"></div>
+    </div>
+  </div>
+
+  <!-- Dedicated 2-Column Workspace (Native CSS Grid) -->
+  <div class="meeting-detail-workspace">
+    
+    <!-- Main Column: Resolutions List & Management (Left/Center) -->
+    <div class="meeting-resolutions-column">
+      <div class="card agenda-card">
+        <div class="agenda-card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+          <div class="agenda-header-title-box">
+            <div class="agenda-icon-wrapper icon-resolutions">
+              <i class="fas fa-gavel"></i>
+            </div>
+            <div>
+              <h3 class="agenda-card-title">مصوبات و تصمیمات جلسه</h3>
+              <span class="agenda-card-sub">پیگیری روند اجرا، نوار پیشرفت تعاملی و ثبت واگذاری</span>
+            </div>
+          </div>
+          <span class="badge badge-secondary px-3 py-2" style="font-size: 13px;">
+            {{ to_farsi_digits(meeting.resolutions|length) }} مصوبه
+          </span>
+        </div>
+
+        <div class="agenda-card-body">
+          {% if meeting.resolutions %}
+          <div class="resolutions-list-stack">
+            {% for r in meeting.resolutions %}
+            <div class="resolution-item-card">
+              
+              <!-- Resolution Card Top Header -->
+              <div class="res-card-header-bar">
+                <div class="d-flex align-items-center gap-2 flex-grow-1">
+                  <span class="res-seq-badge">مصوبه #{{ to_farsi_digits(loop.index) }}</span>
+                  <h4 class="res-heading-title">{{ r.title | e }}</h4>
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                  <span class="badge status-{{ r.status }}" id="status-badge-{{ r.id }}">{{ status_label_fa(r.status) }}</span>
+                  <a href="{{ url_for('resolutions_bp.resolutions_edit', res_id=r.id) }}" class="btn-res-link" title="ویرایش کامل در صفحه مصوبات">
+                    <i class="fas fa-external-link-alt"></i>
+                  </a>
+                </div>
+              </div>
+
+              <!-- Resolution Description -->
+              {% if r.description %}
+              <div class="res-body-description">
+                {{ r.description | e }}
+              </div>
+              {% endif %}
+
+              <!-- Top Interactive Slideable Progress Bar Form (AJAX without reload) -->
+              <form action="{{ url_for('resolutions_bp.resolution_progress', res_id=r.id) }}" method="post" class="res-top-progress-form" id="progress-form-{{ r.id }}" onsubmit="return handleProgressSubmit(event, {{ r.id }})">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                
+                <div class="res-progress-top-row">
+                  <div class="res-progress-label-wrap">
+                    <span class="res-progress-label"><i class="fas fa-chart-line text-primary me-1"></i> درصد پیشرفت اقدام:</span>
+                    <span class="res-percent-pill {% if r.progress == 100 %}pill-success{% elif r.progress >= 50 %}pill-primary{% else %}pill-warning{% endif %}" id="pill-{{ r.id }}">
+                      {{ to_farsi_digits(r.progress) }}%
+                    </span>
+                  </div>
+
+                  <!-- Quick Preset Milestone Chips -->
+                  <div class="res-milestone-chips">
+                    <button type="button" class="milestone-chip" onclick="applyPreset({{ r.id }}, 0)">۰٪</button>
+                    <button type="button" class="milestone-chip" onclick="applyPreset({{ r.id }}, 25)">۲۵٪</button>
+                    <button type="button" class="milestone-chip" onclick="applyPreset({{ r.id }}, 50)">۵۰٪</button>
+                    <button type="button" class="milestone-chip" onclick="applyPreset({{ r.id }}, 75)">۷۵٪</button>
+                    <button type="button" class="milestone-chip" onclick="applyPreset({{ r.id }}, 100)">۱۰۰٪</button>
+                  </div>
+                </div>
+
+                <!-- Slideable Bar on the Top with Save Button Aligned -->
+                <div class="res-slider-action-bar">
+                  <div class="res-slider-track-box">
+                    <input type="range" min="0" max="100" name="progress" 
+                           class="res-top-slider" id="slider-{{ r.id }}" value="{{ r.progress }}"
+                           oninput="onTopSliderMove({{ r.id }}, this.value)">
+                  </div>
+                  <button type="submit" class="btn btn-save-progress" id="save-btn-{{ r.id }}">
+                    <i class="fas fa-save me-1"></i> ثبت پیشرفت
+                  </button>
+                </div>
+              </form>
+
+              <!-- Metadata Badges -->
+              <div class="res-meta-chips-row">
+                <div class="res-chip">
+                  <i class="fas fa-user-tie text-primary me-1"></i>
+                  <span>مسئول پیگیری:</span>
+                  <strong id="assignee-text-{{ r.id }}">{{ r.assigned_to.name if r.assigned_to else 'تعیین نشده' }}</strong>
+                </div>
+                <div class="res-chip">
+                  <i class="far fa-calendar-alt text-warning me-1"></i>
+                  <span>مهلت سررسید:</span>
+                  <strong id="due-date-text-{{ r.id }}">{{ format_jalali_date_any(r.due_date) if r.due_date else 'تعیین نشده' }}</strong>
+                </div>
+                {% if r.approved_by %}
+                <div class="res-chip">
+                  <i class="fas fa-check-double text-success me-1"></i>
+                  <span>تأیید:</span>
+                  <strong>{{ r.approved_by.name }}</strong>
+                </div>
+                {% endif %}
+              </div>
+
+              <!-- Proportional Action Toolbar (Assign + Complete) -->
+              <div class="res-bottom-action-panel">
+                <form action="{{ url_for('resolutions_bp.resolution_assign', res_id=r.id) }}" method="post" class="res-assign-form" id="assign-form-{{ r.id }}" onsubmit="return handleAssignSubmit(event, {{ r.id }})">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                  
+                  <div class="res-field-box">
+                    <label class="res-ctrl-label">مسئول:</label>
+                    <div class="d-flex align-items-center gap-1">
+                      <select name="assigned_to_user_id" class="res-ctrl-input res-select assignee-dropdown" id="assignee-select-{{ r.id }}" onchange="handleAssigneeSelectChange(this, {{ r.id }})">
+                        <option value="">انتخاب مسئول...</option>
+                        <option value="__NEW__" style="color: #2563eb; font-weight: 700;">+ تعریف مسئول جدید...</option>
+                        <option disabled>──────────</option>
+                        {% for u in users %}
+                        <option value="{{ u.id }}" {% if r.assigned_to_user_id == u.id %}selected{% endif %}>{{ u.name }}</option>
+                        {% endfor %}
+                      </select>
+                      <button type="button" class="btn-quick-add-user" onclick="openQuickUserModal({{ r.id }})" title="تعریف سریع مسئول جدید">
+                        <i class="fas fa-plus"></i>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div class="res-field-box">
+                    <label class="res-ctrl-label">سررسید:</label>
+                    <input type="text" name="due_date" class="res-ctrl-input res-date" placeholder="۱۴۰۴-۰۸-۱۵" value="{{ format_jalali_date_any(r.due_date) if r.due_date else '' }}">
+                  </div>
+
+                  <button type="submit" class="btn btn-assign-action" id="assign-btn-{{ r.id }}">
+                    <i class="fas fa-user-check me-1"></i> واگذاری
+                  </button>
+                </form>
+
+                {% if r.status != 'completed' %}
+                <form action="{{ url_for('resolutions_bp.resolution_complete', res_id=r.id) }}" method="post" class="res-complete-form" id="complete-form-{{ r.id }}" onsubmit="return handleCompleteSubmit(event, {{ r.id }})">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                  <button type="submit" class="btn btn-complete-action" id="complete-btn-{{ r.id }}" title="تکمیل نهایی مصوبه">
+                    <i class="fas fa-check-circle me-1"></i> تکمیل قطعی
+                  </button>
+                </form>
+                {% endif %}
+              </div>
+
+            </div>
+            {% endfor %}
+          </div>
+          {% else %}
+          <div class="p-5 text-center text-muted">
+            <i class="fas fa-clipboard-list fa-3x mb-3 text-secondary opacity-50"></i>
+            <h5 class="fw-bold">هنوز مصوبه‌ای برای این جلسه ثبت نشده است</h5>
+            <p class="small text-muted">از فرم کناری می‌توانید اولین مصوبه این نشست را ثبت فرمایید.</p>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Side Column: Add New Resolution Form (Right) -->
+    <div class="meeting-add-resolution-column">
+      <div class="card agenda-card">
+        <div class="agenda-card-header">
+          <div class="agenda-header-title-box">
+            <div class="agenda-icon-wrapper icon-tasks">
+              <i class="fas fa-plus-circle"></i>
+            </div>
+            <div>
+              <h3 class="agenda-card-title">ثبت مصوبه جدید</h3>
+              <span class="agenda-card-sub">افزودن تکالیف و مصوبات جلسه</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="agenda-card-body">
+          <form method="post" action="{{ url_for('meetings_bp.resolution_new', meeting_id=meeting.id) }}" id="newResolutionForm" onsubmit="return handleNewResolutionSubmit(event)">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <div class="form-group mb-3">
+              <label class="form-label fw-bold small text-dark"><i class="fas fa-heading text-primary me-1"></i> عنوان مصوبه <span class="text-danger">*</span></label>
+              <input type="text" name="title" class="form-control" placeholder="مثال: پیگیری تفاهم‌نامه همکاری..." required>
+            </div>
+
+            <div class="form-group mb-4">
+              <label class="form-label fw-bold small text-dark"><i class="fas fa-align-right text-primary me-1"></i> توضیحات و جزئیات اقدام</label>
+              <textarea name="description" class="form-control" rows="4" placeholder="شرح مصوبه، مراحل انجام و نتایج مورد انتظار..."></textarea>
+            </div>
+
+            <button type="submit" class="btn btn-save-profile w-100">
+              <i class="fas fa-plus-circle me-2"></i> ثبت و الحاق مصوبه
+            </button>
+          </form>
+
+          <div class="mt-4 p-3 bg-light rounded-3 border">
+            <div class="small fw-bold text-primary mb-1"><i class="fas fa-info-circle me-1"></i> راهنمای مصوبات:</div>
+            <p class="small text-muted mb-0">پس از ثبت، می‌توانید مسئول پیگیری، مهلت سررسید و درصد پیشرفت را به صورت لحظه‌ای مدیریت فرمایید.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<style>
+  /* ==========================================================================
+     Meeting Details & Resolutions Management Layout (Pure CSS Grid)
+     ========================================================================== */
+  
+  .meeting-detail-workspace {
+    display: grid;
+    grid-template-columns: 1fr 370px;
+    gap: 24px;
+    align-items: start;
+    width: 100%;
+  }
+
+  @media (max-width: 1024px) {
+    .meeting-detail-workspace {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .resolutions-list-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .resolution-item-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    padding: 20px 22px;
+    box-shadow: 0 4px 14px -2px rgba(0, 0, 0, 0.04);
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  }
+
+  .resolution-item-card:hover {
+    border-color: #93c5fd;
+    box-shadow: 0 8px 22px -4px rgba(59, 130, 246, 0.1);
+  }
+
+  .res-card-header-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+
+  .res-seq-badge {
+    background: #eff6ff;
+    color: #1d4ed8;
+    font-weight: 800;
+    font-size: 12px;
+    padding: 4px 10px;
+    border-radius: 8px;
+    border: 1px solid #bfdbfe;
+    white-space: nowrap;
+  }
+
+  .res-heading-title {
+    font-size: 15.5px;
+    font-weight: 700;
+    color: #1e293b;
+    margin: 0;
+    line-height: 1.4;
+  }
+
+  .btn-res-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    color: #3b82f6;
+    transition: all 0.2s ease;
+    text-decoration: none;
+    font-size: 13px;
+  }
+
+  .btn-res-link:hover {
+    background: #eff6ff;
+    border-color: #3b82f6;
+    color: #1d4ed8;
+  }
+
+  .res-body-description {
+    font-size: 13px;
+    color: #475569;
+    line-height: 1.6;
+    margin-bottom: 14px;
+    background: #f8fafc;
+    padding: 10px 14px;
+    border-radius: 8px;
+    border-right: 3px solid #3b82f6;
+  }
+
+  /* ==========================================================================
+     Top Interactive Slideable Progress Bar Form
+     ========================================================================== */
+  
+  .res-top-progress-form {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 12px 16px;
+    margin-bottom: 14px;
+  }
+
+  .res-progress-top-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+  }
+
+  .res-progress-label-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .res-progress-label {
+    font-size: 13px;
+    font-weight: 700;
+    color: #334155;
+  }
+
+  .res-percent-pill {
+    font-size: 12.5px;
+    font-weight: 800;
+    padding: 2px 8px;
+    border-radius: 6px;
+    min-width: 44px;
+    text-align: center;
+    transition: all 0.2s ease;
+  }
+
+  .res-percent-pill.pill-warning {
+    background: #fef3c7;
+    color: #b45309;
+    border: 1px solid #fde68a;
+  }
+
+  .res-percent-pill.pill-primary {
+    background: #eff6ff;
+    color: #1d4ed8;
+    border: 1px solid #bfdbfe;
+  }
+
+  .res-percent-pill.pill-success {
+    background: #d1fae5;
+    color: #047857;
+    border: 1px solid #a7f3d0;
+  }
+
+  .res-milestone-chips {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .milestone-chip {
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    padding: 3px 8px;
+    font-size: 11px;
+    font-weight: 700;
+    font-family: inherit;
+    color: #475569;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    height: 26px;
+    line-height: 1.2;
+  }
+
+  .milestone-chip:hover {
+    background: #eff6ff;
+    border-color: #3b82f6;
+    color: #1d4ed8;
+  }
+
+  .res-slider-action-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .res-slider-track-box {
+    flex: 1;
+    display: flex;
+    align-items: center;
+  }
+
+  .res-top-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 12px;
+    border-radius: 6px;
+    background: #e2e8f0;
+    outline: none;
+    cursor: pointer;
+    margin: 0;
+    transition: background 0.2s ease;
+  }
+
+  .res-top-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #1e3a8a, #3b82f6);
+    border: 2.5px solid #ffffff;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(30, 58, 138, 0.35);
+    transition: transform 0.15s ease;
+  }
+
+  .res-top-slider::-webkit-slider-thumb:hover {
+    transform: scale(1.18);
+  }
+
+  .res-top-slider::-moz-range-thumb {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #1e3a8a, #3b82f6);
+    border: 2.5px solid #ffffff;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(30, 58, 138, 0.35);
+  }
+
+  .btn-save-progress {
+    height: 36px;
+    padding: 0 16px;
+    background: linear-gradient(135deg, #0284c7, #0369a1);
+    border: none;
+    border-radius: 8px;
+    color: #ffffff;
+    font-size: 12.5px;
+    font-weight: 700;
+    font-family: inherit;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 6px rgba(2, 132, 199, 0.25);
+  }
+
+  .btn-save-progress:hover {
+    background: linear-gradient(135deg, #0369a1, #075985);
+    box-shadow: 0 4px 12px rgba(2, 132, 199, 0.35);
+  }
+
+  /* ==========================================================================
+     Metadata Badges
+     ========================================================================== */
+  
+  .res-meta-chips-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+  }
+
+  .res-chip {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 5px 12px;
+    font-size: 12px;
+    color: #475569;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .res-chip strong {
+    color: #1e293b;
+  }
+
+  /* ==========================================================================
+     Bottom Action Panel (Proportional 36px Controls)
+     ========================================================================== */
+  
+  .res-bottom-action-panel {
+    background-color: #ffffff;
+    border: 1px dashed #cbd5e1;
+    border-radius: 12px;
+    padding: 12px 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .res-assign-form {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    flex: 1;
+  }
+
+  .res-complete-form {
+    margin: 0;
+  }
+
+  .res-field-box {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .res-ctrl-label {
+    font-size: 12.5px;
+    font-weight: 700;
+    color: #475569;
+    white-space: nowrap;
+    margin: 0;
+  }
+
+  .res-ctrl-input {
+    height: 36px;
+    padding: 0 10px;
+    font-size: 12.5px;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    background-color: #ffffff;
+    color: #1e293b;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .res-ctrl-input:focus {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+  }
+
+  .res-select {
+    min-width: 140px;
+  }
+
+  .res-date {
+    width: 125px;
+  }
+
+  .btn-assign-action {
+    height: 36px;
+    padding: 0 14px;
+    background: linear-gradient(135deg, #1e3a8a, #1d4ed8);
+    border: none;
+    border-radius: 8px;
+    color: #ffffff;
+    font-size: 12.5px;
+    font-weight: 700;
+    font-family: inherit;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 6px rgba(30, 58, 138, 0.2);
+  }
+
+  .btn-assign-action:hover {
+    background: linear-gradient(135deg, #1e40af, #1e3a8a);
+    box-shadow: 0 4px 10px rgba(30, 58, 138, 0.3);
+  }
+
+  .btn-complete-action {
+    height: 36px;
+    padding: 0 14px;
+    background: linear-gradient(135deg, #10b981, #059669);
+    border: none;
+    border-radius: 8px;
+    color: #ffffff;
+    font-size: 12.5px;
+    font-weight: 700;
+    font-family: inherit;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 6px rgba(16, 185, 129, 0.2);
+  }
+
+  .btn-complete-action:hover {
+    background: linear-gradient(135deg, #059669, #047857);
+    box-shadow: 0 4px 10px rgba(16, 185, 129, 0.3);
+  }
+
+  /* Quick Add User Button & Modal */
+  .btn-quick-add-user {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    border: 1px solid #cbd5e1;
+    background: #f8fafc;
+    color: #3b82f6;
+    font-size: 13px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+  }
+
+  .btn-quick-add-user:hover {
+    background: #eff6ff;
+    border-color: #3b82f6;
+    color: #1d4ed8;
+    transform: scale(1.05);
+  }
+
+  .quick-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(15, 23, 42, 0.65);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    padding: 16px;
+  }
+
+  .quick-modal-card {
+    background: #ffffff;
+    border-radius: 16px;
+    box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.25);
+    width: 100%;
+    max-width: 440px;
+    border: 1px solid #e2e8f0;
+    overflow: hidden;
+    animation: modalFadeIn 0.2s ease-out forwards;
+  }
+
+  @keyframes modalFadeIn {
+    from { opacity: 0; transform: translateY(12px) scale(0.97); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  .quick-modal-header {
+    padding: 16px 20px;
+    background: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .quick-modal-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    background: #eff6ff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+  }
+
+  .quick-modal-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: #1e293b;
+  }
+
+  .quick-modal-subtitle {
+    font-size: 11.5px;
+    color: #64748b;
+  }
+
+  .quick-modal-close {
+    background: transparent;
+    border: none;
+    font-size: 24px;
+    color: #94a3b8;
+    cursor: pointer;
+    padding: 0 4px;
+    line-height: 1;
+  }
+
+  .quick-modal-close:hover {
+    color: #ef4444;
+  }
+
+  .quick-modal-body {
+    padding: 20px;
+  }
+
+  .quick-modal-footer {
+    padding: 14px 20px;
+    background: #f8fafc;
+    border-top: 1px solid #e2e8f0;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+</style>
+
+<!-- Quick Add User Modal -->
+<div id="quickUserModal" class="quick-modal-overlay" style="display: none;">
+  <div class="quick-modal-card">
+    <div class="quick-modal-header">
+      <div class="d-flex align-items-center gap-2">
+        <div class="quick-modal-icon">
+          <i class="fas fa-user-plus text-primary"></i>
+        </div>
+        <div>
+          <h4 class="quick-modal-title mb-0">تعریف مسئول جدید</h4>
+          <span class="quick-modal-subtitle">افزودن شخص، واحد یا پیمانکار جهت تخصیص مصوبه</span>
+        </div>
+      </div>
+      <button type="button" class="quick-modal-close" onclick="closeQuickUserModal()">&times;</button>
+    </div>
+
+    <form id="quickUserForm" onsubmit="return submitQuickUser(event)">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <div class="quick-modal-body">
+        <div class="form-group mb-2">
+          <label class="form-label fw-bold small text-dark mb-1">
+            <i class="fas fa-user me-1 text-primary"></i> نام و نام خانوادگی یا عنوان واحد سازمانی <span class="text-danger">*</span>
+          </label>
+          <input type="text" id="quickUserName" class="form-control" placeholder="مثال: مهندس رضایی یا روابط عمومی" required autofocus style="border-radius: 8px; font-size: 13px;">
+          <div class="form-text text-muted small mt-1">مسئول جدید بلافاصله در تمام لیست‌های انتخاب قابل استفاده خواهد بود.</div>
+        </div>
+      </div>
+
+      <div class="quick-modal-footer">
+        <button type="button" class="btn btn-secondary btn-sm px-3" onclick="closeQuickUserModal()" style="border-radius: 8px;">انصراف</button>
+        <button type="submit" id="quickUserSubmitBtn" class="btn btn-primary btn-sm px-3" style="border-radius: 8px; font-weight: 700;">
+          <i class="fas fa-check me-1"></i> ثبت و انتخاب
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  function toFarsiNum(num) {
+    var map = {'0':'۰','1':'۱','2':'۲','3':'۳','4':'۴','5':'۵','6':'۶','7':'۷','8':'۸','9':'۹'};
+    return String(num).replace(/[0-9]/g, function(d){ return map[d]; });
+  }
+
+  function updateSliderFill(slider, val) {
+    var color = val === 100 ? '#10b981' : (val >= 50 ? '#3b82f6' : '#f59e0b');
+    slider.style.background = 'linear-gradient(to left, ' + color + ' ' + val + '%, #e2e8f0 ' + val + '%)';
+  }
+
+  function onTopSliderMove(resId, val) {
+    val = parseInt(val) || 0;
+    val = Math.max(0, Math.min(100, val));
+    var farsiVal = toFarsiNum(val) + '%';
+    
+    // Update pill text and color class
+    var pill = document.getElementById('pill-' + resId);
+    if (pill) {
+      pill.textContent = farsiVal;
+      pill.className = 'res-percent-pill ' + (val === 100 ? 'pill-success' : (val >= 50 ? 'pill-primary' : 'pill-warning'));
+    }
+    
+    // Update slider track fill
+    var slider = document.getElementById('slider-' + resId);
+    if (slider) {
+      updateSliderFill(slider, val);
+    }
+  }
+
+  function applyPreset(resId, val) {
+    var slider = document.getElementById('slider-' + resId);
+    if (slider) {
+      slider.value = val;
+      onTopSliderMove(resId, val);
+    }
+  }
+
+  // =========================================================================
+  // Quick Add Responsible Person Modal & Logic
+  // =========================================================================
+
+  var targetResIdForNewUser = null;
+
+  function openQuickUserModal(resId) {
+    targetResIdForNewUser = resId;
+    var modal = document.getElementById('quickUserModal');
+    var input = document.getElementById('quickUserName');
+    if (modal) {
+      modal.style.display = 'flex';
+      if (input) {
+        input.value = '';
+        setTimeout(function() { input.focus(); }, 100);
+      }
+    }
+  }
+
+  function closeQuickUserModal() {
+    var modal = document.getElementById('quickUserModal');
+    if (modal) modal.style.display = 'none';
+    
+    // If the select had '__NEW__' selected, revert it back to empty
+    if (targetResIdForNewUser) {
+      var sel = document.getElementById('assignee-select-' + targetResIdForNewUser);
+      if (sel && sel.value === '__NEW__') sel.value = '';
+    }
+    targetResIdForNewUser = null;
+  }
+
+  function handleAssigneeSelectChange(sel, resId) {
+    if (sel.value === '__NEW__') {
+      openQuickUserModal(resId);
+    }
+  }
+
+  function submitQuickUser(e) {
+    e.preventDefault();
+    var input = document.getElementById('quickUserName');
+    var btn = document.getElementById('quickUserSubmitBtn');
+    var name = input ? input.value.trim() : '';
+    if (!name) return false;
+
+    var originalHtml = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> در حال ثبت...';
+    btn.disabled = true;
+
+    var formData = new FormData();
+    formData.append('name', name);
+    var csrf = document.querySelector('input[name="csrf_token"]');
+    if (csrf) formData.append('csrf_token', csrf.value);
+
+    fetch("{{ url_for('users_bp.user_quick_create') }}", {
+      method: 'POST',
+      body: formData,
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest',
+        'Accept': 'application/json'
+      }
+    })
+    .then(function(res) {
+      if (!res.ok) throw new Error('خطا در ثبت مسئول');
+      return res.json();
+    })
+    .then(function(data) {
+      btn.innerHTML = originalHtml;
+      btn.disabled = false;
+
+      if (data.status === 'ok' && data.user) {
+        var newId = data.user.id;
+        var newName = data.user.name;
+
+        // Add this new user to ALL assignee dropdowns on the page
+        var allSelects = document.querySelectorAll('.assignee-dropdown');
+        allSelects.forEach(function(sel) {
+          var exists = Array.from(sel.options).some(function(opt) { return opt.value == newId; });
+          if (!exists) {
+            var opt = document.createElement('option');
+            opt.value = newId;
+            opt.textContent = newName;
+            sel.appendChild(opt);
+          }
+        });
+
+        // Set the active resolution's select to this user
+        if (targetResIdForNewUser) {
+          var targetSel = document.getElementById('assignee-select-' + targetResIdForNewUser);
+          if (targetSel) {
+            targetSel.value = newId;
+          }
+        }
+
+        closeQuickUserModal();
+      } else {
+        alert(data.message || 'خطا در ثبت مسئول جدید');
+      }
+    })
+    .catch(function(err) {
+      btn.innerHTML = originalHtml;
+      btn.disabled = false;
+      alert('خطا در ارتباط با سرور: ' + err.message);
+    });
+
+    return false;
+  }
+
+  // Close modal on Escape key or backdrop click
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') closeQuickUserModal();
+  });
+  document.getElementById('quickUserModal')?.addEventListener('click', function(e) {
+    if (e.target === this) closeQuickUserModal();
+  });
+
+  // =========================================================================
+  // AJAX Form Handlers (Zero Page Reload)
+  // =========================================================================
+
+  function handleProgressSubmit(e, resId) {
+    e.preventDefault();
+    var form = document.getElementById('progress-form-' + resId);
+    var btn = document.getElementById('save-btn-' + resId);
+    if (!form || !btn) return false;
+
+    var originalHtml = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> ذخیره...';
+    btn.disabled = true;
+
+    var formData = new FormData(form);
+
+    fetch(form.action, {
+      method: 'POST',
+      body: formData,
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest',
+        'Accept': 'application/json'
+      }
+    })
+    .then(function(res) {
+      if (!res.ok) throw new Error('خطا در ارتباط با سرور');
+      return res.json();
+    })
+    .then(function(data) {
+      btn.innerHTML = '<i class="fas fa-check me-1"></i> ذخیره شد ✓';
+      btn.style.background = 'linear-gradient(135deg, #10b981, #059669)';
+      
+      // Update status badge if completed
+      var statusBadge = document.getElementById('status-badge-' + resId);
+      if (statusBadge && data.res_status) {
+        statusBadge.className = 'badge status-' + data.res_status;
+        statusBadge.textContent = data.status_label || statusBadge.textContent;
+      }
+
+      setTimeout(function() {
+        btn.innerHTML = originalHtml;
+        btn.style.background = '';
+        btn.disabled = false;
+      }, 1600);
+    })
+    .catch(function(err) {
+      btn.innerHTML = '<i class="fas fa-exclamation-triangle me-1"></i> خطا!';
+      btn.style.background = 'linear-gradient(135deg, #ef4444, #dc2626)';
+      setTimeout(function() {
+        btn.innerHTML = originalHtml;
+        btn.style.background = '';
+        btn.disabled = false;
+      }, 2000);
+    });
+
+    return false;
+  }
+
+  function handleAssignSubmit(e, resId) {
+    e.preventDefault();
+    var form = document.getElementById('assign-form-' + resId);
+    var btn = document.getElementById('assign-btn-' + resId);
+    if (!form || !btn) return false;
+
+    var originalHtml = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> ثبت...';
+    btn.disabled = true;
+
+    var formData = new FormData(form);
+
+    fetch(form.action, {
+      method: 'POST',
+      body: formData,
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest',
+        'Accept': 'application/json'
+      }
+    })
+    .then(function(res) {
+      if (!res.ok) throw new Error('خطا در ارتباط با سرور');
+      return res.json();
+    })
+    .then(function(data) {
+      btn.innerHTML = '<i class="fas fa-check me-1"></i> واگذار شد ✓';
+      btn.style.background = 'linear-gradient(135deg, #10b981, #059669)';
+      
+      var assigneeText = document.getElementById('assignee-text-' + resId);
+      if (assigneeText && data.assigned_to) {
+        assigneeText.textContent = data.assigned_to;
+      }
+      var dueDateText = document.getElementById('due-date-text-' + resId);
+      if (dueDateText && data.due_date) {
+        dueDateText.textContent = data.due_date;
+      }
+
+      var statusBadge = document.getElementById('status-badge-' + resId);
+      if (statusBadge && data.res_status) {
+        statusBadge.className = 'badge status-' + data.res_status;
+        statusBadge.textContent = data.status_label || statusBadge.textContent;
+      }
+
+      setTimeout(function() {
+        btn.innerHTML = originalHtml;
+        btn.style.background = '';
+        btn.disabled = false;
+      }, 1600);
+    })
+    .catch(function(err) {
+      btn.innerHTML = '<i class="fas fa-exclamation-triangle me-1"></i> خطا!';
+      btn.style.background = 'linear-gradient(135deg, #ef4444, #dc2626)';
+      setTimeout(function() {
+        btn.innerHTML = originalHtml;
+        btn.style.background = '';
+        btn.disabled = false;
+      }, 2000);
+    });
+
+    return false;
+  }
+
+  function handleCompleteSubmit(e, resId) {
+    e.preventDefault();
+    var form = document.getElementById('complete-form-' + resId);
+    var btn = document.getElementById('complete-btn-' + resId);
+    if (!form || !btn) return false;
+
+    var originalHtml = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> ثبت...';
+    btn.disabled = true;
+
+    var formData = new FormData(form);
+
+    fetch(form.action, {
+      method: 'POST',
+      body: formData,
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest',
+        'Accept': 'application/json'
+      }
+    })
+    .then(function(res) {
+      if (!res.ok) throw new Error('خطا در ارتباط با سرور');
+      return res.json();
+    })
+    .then(function(data) {
+      applyPreset(resId, 100);
+      btn.innerHTML = '<i class="fas fa-check-double me-1"></i> تکمیل شد ✓';
+      btn.disabled = true;
+
+      var statusBadge = document.getElementById('status-badge-' + resId);
+      if (statusBadge) {
+        statusBadge.className = 'badge status-completed';
+        statusBadge.textContent = 'تکمیل شده';
+      }
+    })
+    .catch(function(err) {
+      btn.innerHTML = '<i class="fas fa-exclamation-triangle me-1"></i> خطا!';
+      setTimeout(function() {
+        btn.innerHTML = originalHtml;
+        btn.disabled = false;
+      }, 2000);
+    });
+
+    return false;
+  }
+
+  function handleNewResolutionSubmit(e) {
+    e.preventDefault();
+    var form = document.getElementById('newResolutionForm');
+    var btn = form.querySelector('button[type="submit"]');
+    if (!form || !btn) return false;
+
+    var originalHtml = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> در حال ثبت...';
+    btn.disabled = true;
+
+    var formData = new FormData(form);
+
+    fetch(form.action, {
+      method: 'POST',
+      body: formData,
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest',
+        'Accept': 'application/json'
+      }
+    })
+    .then(function(res) {
+      if (!res.ok) throw new Error('خطا در ثبت مصوبه جدید');
+      return res.json();
+    })
+    .then(function(data) {
+      btn.innerHTML = '<i class="fas fa-check me-1"></i> مصوبه افزوده شد ✓';
+      btn.style.background = 'linear-gradient(135deg, #10b981, #059669)';
+      
+      if (typeof showToast === 'function') {
+        showToast('مصوبه جدید با موفقیت به این جلسه افزوده شد ✓', 'success');
+      }
+
+      form.reset();
+
+      setTimeout(function() {
+        // Smooth reload or refresh cards to show the newly rendered card with its controls
+        window.location.reload();
+      }, 700);
+    })
+    .catch(function(err) {
+      btn.innerHTML = '<i class="fas fa-exclamation-triangle me-1"></i> خطا در ثبت';
+      btn.style.background = 'linear-gradient(135deg, #ef4444, #dc2626)';
+      if (typeof showToast === 'function') {
+        showToast(err.message || 'خطا در ثبت مصوبه', 'error');
+      }
+      setTimeout(function() {
+        btn.innerHTML = originalHtml;
+        btn.style.background = '';
+        btn.disabled = false;
+      }, 2000);
+    });
+
+    return false;
+  }
+
+  // Initialize track fills on page load
+  document.addEventListener('DOMContentLoaded', function() {
+    var sliders = document.querySelectorAll('.res-top-slider');
+    sliders.forEach(function(s) {
+      updateSliderFill(s, parseInt(s.value) || 0);
+    });
+  });
+</script>
+
+<script src="{{ url_for('static', filename='js/meeting-audio.js') }}"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    if (window.MeetingAudioManager) {
+      window.MeetingAudioManager.init({
+        meetingId: {{ meeting.id }},
+        csrfToken: '{{ csrf_token }}',
+        currentUserId: {{ current_user.id if current_user else 0 }},
+        currentUserName: '{{ current_user.name if current_user else "کاربر" }}'
+      });
+    }
+  });
+</script>
+{% endblock %}
+

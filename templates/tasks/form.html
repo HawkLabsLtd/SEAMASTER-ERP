@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center py-4">
+    <div class="col-md-8">
+        <div class="glass-card">
+            <div class="card-header bg-transparent border-bottom border-white-10 py-3">
+                <h5 class="text-dark mb-0">
+                    <i class="fas fa-edit me-2"></i>
+                    {% if task %}ویرایش کار اجرایی{% else %}تعریف کار اجرایی جدید{% endif %}
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+                    <!-- Title -->
+                    <div class="mb-3">
+                        <label for="title" class="form-label text-dark fw-bold">عنوان کار</label>
+                        <input type="text" class="form-control text-dark border-secondary" id="title" name="title"
+                            required value="{{ task.title if task else initial_title }}">
+                    </div>
+
+                    <!-- Description -->
+                    <div class="mb-3">
+                        <label for="description" class="form-label text-dark fw-bold">توضیحات</label>
+                        <textarea class="form-control text-dark border-secondary" id="description" name="description"
+                            rows="4">{{ task.description if task else initial_desc }}</textarea>
+                    </div>
+
+                    <div class="row">
+                        <!-- Assigned To -->
+                        <div class="col-md-6 mb-3">
+                            <label for="assigned_to_user_id" class="form-label text-dark fw-bold">مسئول انجام</label>
+                            <select class="form-select text-dark border-secondary" id="assigned_to_user_id"
+                                name="assigned_to_user_id">
+                                <option value="" class="text-dark">-- انتخاب کنید --</option>
+                                {% for user in users %}
+                                <option value="{{ user.id }}" class="text-dark" {% if task and
+                                    task.assigned_to_user_id==user.id %}selected{% endif %}>
+                                    {{ user.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <!-- Due Date -->
+                        <div class="col-md-6 mb-3">
+                            <label for="due_date" class="form-label text-dark fw-bold">سررسید (شمسی)</label>
+                            <input type="text" class="form-control text-dark border-secondary" id="due_date"
+                                name="due_date" placeholder="1402-01-01"
+                                value="{{ format_jalali_date_any(task.due_date) if task and task.due_date else '' }}">
+                            <div class="form-text text-muted">فرمت: YYYY-MM-DD</div>
+                        </div>
+                    </div>
+
+                    <!-- Actions -->
+                    <!-- Actions -->
+                    <div class="d-flex justify-content-end mt-4">
+                        <a href="{{ url_for('tasks.dashboard') }}" class="btn btn-outline-light me-2">انصراف</a>
+                        <button type="submit" class="btn btn-primary px-4 d-inline-flex align-items-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round" class="feather feather-save me-2">
+                                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                                <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                                <polyline points="7 3 7 8 15 8"></polyline>
+                            </svg>
+                            ذخیره
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

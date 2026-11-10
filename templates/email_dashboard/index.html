@@ -1,0 +1,536 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-header">
+    <h2 class="page-title">داشبورد ایمیل مارکتینگ</h2>
+    <div class="page-actions">
+        <button type="button" class="btn btn-primary btn-sm"
+            onclick="document.getElementById('uploadModal').style.display='flex'">
+            <i class="fas fa-upload me-1"></i>آپلود کمپین جدید
+        </button>
+    </div>
+</div>
+
+<!-- Upload Modal -->
+<div id="uploadModal" class="modal-overlay" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>آپلود فایل‌های کمپین</h3>
+            <button type="button" class="modal-close"
+                onclick="document.getElementById('uploadModal').style.display='none'">&times;</button>
+        </div>
+        <form action="{{ url_for('email_dashboard.update_data') }}" method="post" enctype="multipart/form-data">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <div class="modal-body">
+                <p class="text-muted mb-3">فایل‌های CSV کمپین هفتگی را انتخاب کنید (مثال: 40th_email.csv)</p>
+                <div class="upload-item">
+                    <label>فایل‌های CSV کمپین</label>
+                    <input type="file" name="csv_files" accept=".csv" multiple class="form-control">
+                </div>
+                <div class="mt-3">
+                    <p class="text-muted small">فایل‌های موجود:</p>
+                    <div class="existing-files">
+                        {% for f in existing_files %}
+                        <span class="badge bg-secondary">{{ f }}</span>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary"
+                    onclick="document.getElementById('uploadModal').style.display='none'">انصراف</button>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-upload me-1"></i>آپلود
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- KPI Cards -->
+<div class="kpi-grid mb-4">
+    <div class="card kpi-card">
+        <div class="card-body text-center">
+            <h4 class="text-muted">تعداد کمپین‌ها</h4>
+            <h2 class="text-primary">{{ kpis.total_campaigns }}</h2>
+        </div>
+    </div>
+    <div class="card kpi-card">
+        <div class="card-body text-center">
+            <h4 class="text-muted">کل ایمیل ارسالی</h4>
+            <h2 class="text-info">{{ "{:,}".format(kpis.total_sent) }}</h2>
+        </div>
+    </div>
+    <div class="card kpi-card">
+        <div class="card-body text-center">
+            <h4 class="text-muted">میانگین نرخ باز شدن</h4>
+            <h2 class="text-success">{{ kpis.avg_open_rate }}%</h2>
+        </div>
+    </div>
+    <div class="card kpi-card">
+        <div class="card-body text-center">
+            <h4 class="text-muted">میانگین نرخ کلیک</h4>
+            <h2 class="text-warning">{{ kpis.avg_click_rate }}%</h2>
+        </div>
+    </div>
+</div>
+
+<!-- Trend Chart -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h3>روند کمپین‌ها</h3>
+    </div>
+    <div class="card-body">
+        <div class="chart-container" style="height: 300px;">
+            <canvas id="trendChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Row: Reading Env + Email Clients -->
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h3>محیط خواندن</h3>
+            </div>
+            <div class="card-body">
+                <div class="chart-container" style="height: 250px;">
+                    <canvas id="envChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-8">
+        <div class="card h-100">
+            <div class="card-header">
+                <h3>کلاینت‌های ایمیل</h3>
+            </div>
+            <div class="card-body">
+                <div class="chart-container" style="height: 250px;">
+                    <canvas id="clientsChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Campaign Cards -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h3>همه کمپین‌ها ({{ campaigns|length }})</h3>
+    </div>
+    <div class="card-body">
+        <div class="campaign-grid">
+            {% for c in campaigns|reverse %}
+            <div class="campaign-card">
+                <h4>{{ c.campaign_name[:40] }}{% if c.campaign_name|length > 40 %}...{% endif %}</h4>
+                <p class="text-muted small">{{ c.sent_date }}</p>
+                <div class="campaign-stats">
+                    <div class="stat">
+                        <span class="label">ارسال</span>
+                        <span class="value">{{ "{:,}".format(c.total_sent) }}</span>
+                    </div>
+                    <div class="stat">
+                        <span class="label">باز شده</span>
+                        <span class="value text-success">{{ c.opened }}%</span>
+                    </div>
+                    <div class="stat">
+                        <span class="label">کلیک</span>
+                        <span class="value text-primary">{{ c.clicked }}%</span>
+                    </div>
+                    <div class="stat">
+                        <span class="label">برگشتی</span>
+                        <span class="value text-danger">{{ "%.2f"|format(c.hard_bounce + c.soft_bounce) }}%</span>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    (function () {
+        // Trend Chart
+        var trendLabels = {{ trend_data.labels | tojson
+    }};
+    var trendOpened = {{ trend_data.opened | tojson }};
+    var trendClicked = {{ trend_data.clicked | tojson }};
+
+    if (trendLabels.length > 0) {
+        new Chart(document.getElementById('trendChart').getContext('2d'), {
+            type: 'line',
+            data: {
+                labels: trendLabels,
+                datasets: [
+                    {
+                        label: 'نرخ باز شدن (%)',
+                        data: trendOpened,
+                        borderColor: '#10b981',
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        borderWidth: 2,
+                        tension: 0.4,
+                        fill: true
+                    },
+                    {
+                        label: 'نرخ کلیک (%)',
+                        data: trendClicked,
+                        borderColor: '#3b82f6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        borderWidth: 2,
+                        tension: 0.4,
+                        fill: true
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { position: 'top' } },
+                scales: { y: { beginAtZero: true } }
+            }
+        });
+    }
+
+    // Reading Environment Doughnut Chart
+    var envData = {{ reading_env | tojson }};
+    new Chart(document.getElementById('envChart').getContext('2d'), {
+        type: 'doughnut',
+        data: {
+            labels: ['دسکتاپ', 'موبایل', 'وب‌میل'],
+            datasets: [{
+                data: [envData.desktop, envData.mobile, envData.webmail],
+                backgroundColor: ['#3b82f6', '#10b981', '#f59e0b'],
+                borderWidth: 0
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { position: 'bottom' } }
+        }
+    });
+
+    // Email Clients Bar Chart
+    var clients = {{ email_clients | tojson }};
+    new Chart(document.getElementById('clientsChart').getContext('2d'), {
+        type: 'bar',
+        data: {
+            labels: clients.map(function (c) { return c.name; }),
+            datasets: [{
+                label: 'درصد استفاده',
+                data: clients.map(function (c) { return c.percentage; }),
+                backgroundColor: '#4318FF',
+                borderRadius: 4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            indexAxis: 'y',
+            plugins: { legend: { display: false } },
+            scales: { x: { beginAtZero: true } }
+        }
+    });
+}) ();
+</script>
+
+<style>
+    .kpi-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 1rem;
+    }
+
+    .card {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        border: 1px solid #e5e7eb;
+        overflow: hidden;
+    }
+
+    .card-header {
+        padding: 1rem;
+        border-bottom: 1px solid #f3f4f6;
+        background: #f9fafb;
+    }
+
+    .card-header h3 {
+        margin: 0;
+        font-size: 1rem;
+        color: #374151;
+    }
+
+    .card-body {
+        padding: 1rem;
+    }
+
+    .kpi-card h4 {
+        margin: 0 0 0.5rem;
+        font-size: 0.85rem;
+    }
+
+    .kpi-card h2 {
+        margin: 0;
+        font-size: 1.75rem;
+    }
+
+    .row {
+        display: flex;
+        flex-direction: row;
+        flex-wrap: nowrap;
+        gap: 1rem;
+    }
+
+    .col-md-4 {
+        flex: 0 0 calc(33.333% - 0.5rem);
+        min-width: 250px;
+    }
+
+    .col-md-8 {
+        flex: 1 1 calc(66.666% - 0.5rem);
+        min-width: 300px;
+    }
+
+    .campaign-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 1rem;
+    }
+
+    .campaign-card {
+        background: #f9fafb;
+        border-radius: 8px;
+        padding: 1rem;
+        border: 1px solid #e5e7eb;
+    }
+
+    .campaign-card h4 {
+        margin: 0 0 0.25rem;
+        font-size: 0.95rem;
+    }
+
+    .campaign-stats {
+        display: flex;
+        gap: 1rem;
+        margin-top: 0.75rem;
+    }
+
+    .campaign-stats .stat {
+        text-align: center;
+        flex: 1;
+    }
+
+    .campaign-stats .label {
+        display: block;
+        font-size: 0.75rem;
+        color: #6b7280;
+    }
+
+    .campaign-stats .value {
+        display: block;
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+
+    /* Modal Styles */
+    .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+    }
+
+    .modal-content {
+        background: white;
+        border-radius: 12px;
+        width: 90%;
+        max-width: 500px;
+        overflow: hidden;
+    }
+
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid #e5e7eb;
+        background: #f9fafb;
+    }
+
+    .modal-header h3 {
+        margin: 0;
+        font-size: 1.25rem;
+    }
+
+    .modal-close {
+        background: none;
+        border: none;
+        font-size: 1.5rem;
+        cursor: pointer;
+    }
+
+    .modal-body {
+        padding: 1.5rem;
+    }
+
+    .modal-footer {
+        padding: 1rem 1.5rem;
+        border-top: 1px solid #e5e7eb;
+        display: flex;
+        justify-content: flex-end;
+        gap: 0.75rem;
+    }
+
+    .upload-item {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .upload-item label {
+        font-weight: 500;
+    }
+
+    .form-control {
+        padding: 0.5rem;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+    }
+
+    .existing-files {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+
+    .badge {
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        font-size: 0.75rem;
+    }
+
+    .bg-secondary {
+        background: #6b7280;
+        color: white;
+    }
+
+    .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.5rem;
+    }
+
+    .page-title {
+        margin: 0;
+        font-size: 1.5rem;
+        font-weight: 600;
+    }
+
+    .btn {
+        padding: 0.5rem 1rem;
+        border-radius: 6px;
+        border: none;
+        cursor: pointer;
+        font-weight: 500;
+    }
+
+    .btn-primary {
+        background: #3b82f6;
+        color: white;
+    }
+
+    .btn-secondary {
+        background: #6b7280;
+        color: white;
+    }
+
+    .btn-sm {
+        padding: 0.375rem 0.75rem;
+        font-size: 0.875rem;
+    }
+
+    .text-muted {
+        color: #6b7280;
+    }
+
+    .text-primary {
+        color: #3b82f6;
+    }
+
+    .text-info {
+        color: #06b6d4;
+    }
+
+    .text-success {
+        color: #10b981;
+    }
+
+    .text-warning {
+        color: #f59e0b;
+    }
+
+    .text-danger {
+        color: #ef4444;
+    }
+
+    .text-center {
+        text-align: center;
+    }
+
+    .small {
+        font-size: 0.875rem;
+    }
+
+    .mb-3 {
+        margin-bottom: 1rem;
+    }
+
+    .mb-4 {
+        margin-bottom: 1.5rem;
+    }
+
+    .mt-3 {
+        margin-top: 1rem;
+    }
+
+    .h-100 {
+        height: 100%;
+    }
+
+    .me-1 {
+        margin-left: 0.25rem;
+    }
+
+    @media (max-width: 992px) {
+        .kpi-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+
+        .row {
+            flex-direction: column;
+        }
+
+        .col-md-4,
+        .col-md-8 {
+            flex: 0 0 100%;
+        }
+    }
+
+    @media (max-width: 576px) {
+        .kpi-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock %}

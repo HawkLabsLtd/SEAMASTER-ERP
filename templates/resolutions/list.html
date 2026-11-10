@@ -1,0 +1,150 @@
+{% extends 'base.html' %}
+{% block title %}فهرست مصوبات{% endblock %}
+
+{% block content %}
+<div class="dashboard-page-container">
+  <div class="page-header d-flex align-items-center justify-content-between mb-4 flex-wrap gap-3">
+    <div>
+      <h2 class="page-title mb-1"><i class="fas fa-gavel text-primary me-2"></i> فهرست و پیگیری مصوبات</h2>
+      <p class="text-muted small mb-0">نظارت بر روند اجرا، درصد پیشرفت و تعیین مسئولان مصوبات</p>
+    </div>
+    <div class="d-flex gap-2 align-items-center flex-wrap">
+      <a href="{{ url_for('resolutions_bp.resolutions_new') }}" class="btn btn-primary">
+        <i class="fas fa-plus me-1"></i> افزودن مصوبه جدید
+      </a>
+      <a href="{{ url_for('meetings_bp.meeting_list') }}" class="btn btn-secondary">
+        <i class="fas fa-handshake me-1"></i> جلسات
+      </a>
+      <a href="{{ url_for('users_bp.user_list') }}" class="btn btn-secondary">
+        <i class="fas fa-users me-1"></i> مسئولان
+      </a>
+      <a href="{{ url_for('main_bp.index') }}" class="btn btn-secondary">
+        <i class="fas fa-home me-1"></i> داشبورد
+      </a>
+    </div>
+  </div>
+
+  <div class="card agenda-card">
+    <div class="agenda-card-header d-flex align-items-center justify-content-between flex-wrap gap-3">
+      <div style="flex: 1; max-width: 360px;">
+        <input type="text" class="form-control form-control-sm" data-table-filter="#resolutionsTable" placeholder="🔍 جستجوی سریع مصوبه، جلسه یا مسئول...">
+      </div>
+      <div class="d-flex align-items-center gap-2">
+        <a class="btn btn-sm btn-ghost" href="{{ url_for('resolutions_bp.resolutions_list', page=1, per_page=200, status=status or None, q=q or None) }}">
+          <i class="fas fa-list me-1"></i> مشاهده همه
+        </a>
+        <span class="badge badge-secondary px-3 py-2" style="font-size: 13px;">
+          تعداد: {{ to_farsi_digits(resolutions|length) }}
+        </span>
+      </div>
+    </div>
+
+    <div class="agenda-card-body p-0">
+      {% if resolutions %}
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0" id="resolutionsTable">
+          <thead>
+            <tr>
+              <th style="min-width: 170px;">عنوان مصوبه</th>
+              <th style="min-width: 140px;">جلسه مربوطه</th>
+              <th class="text-center" style="width: 75px;">وضعیت</th>
+              <th style="min-width: 120px;">مسئول پیگیری</th>
+              <th style="min-width: 100px;">سررسید</th>
+              <th style="min-width: 130px;">میزان پیشرفت</th>
+              <th class="text-center" style="min-width: 130px;">عملیات</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in resolutions %}
+            <tr>
+              <td>
+                <span class="fw-bold text-dark d-block" style="font-size: 13px;">{{ r.title | e }}</span>
+              </td>
+              <td>
+                <a href="{{ url_for('meetings_bp.meeting_detail', meeting_id=r.meeting_id) }}" class="text-primary fw-bold text-decoration-none" style="font-size: 12.5px;">
+                  {{ r.meeting.title | e }}
+                </a>
+              </td>
+              <td class="text-center">
+                <span class="status-dot-only dot-{{ r.status }}" title="{{ status_label_fa(r.status) }}"></span>
+              </td>
+              <td>
+                {% if r.assigned_to %}
+                <span class="badge badge-light" style="font-size: 11.5px; border: 1px solid #e2e8f0; border-radius: 6px;"><i class="fas fa-user-check me-1 text-primary"></i> {{ r.assigned_to.name }}</span>
+                {% else %}
+                <span class="text-muted small">—</span>
+                {% endif %}
+              </td>
+              <td>
+                <span class="small text-muted" style="white-space: nowrap;">
+                  {{ format_jalali_date_any(r.due_date) if r.due_date else '—' }}
+                </span>
+              </td>
+              <td>
+                <div class="d-flex align-items-center gap-2">
+                  <div class="progress flex-grow-1" style="height: 7px; min-width: 50px;">
+                    <div class="progress-bar {% if r.progress == 100 %}bg-success{% elif r.progress >= 50 %}bg-primary{% else %}bg-warning{% endif %}" style="width: {{ r.progress }}%;"></div>
+                  </div>
+                  <span style="font-size: 11.5px; font-weight: 700; color: #475569;">{{ to_farsi_digits(r.progress) }}%</span>
+                </div>
+              </td>
+              <td class="text-center">
+                <div class="d-inline-flex gap-2 align-items-center">
+                  <a class="btn btn-sm btn-info text-white d-inline-flex align-items-center justify-content-center shadow-sm"
+                    href="{{ url_for('resolutions_bp.resolutions_edit', res_id=r.id) }}"
+                    style="border-radius: 8px; padding: 5px 10px; font-size: 12px;" title="ویرایش مصوبه">
+                    <i class="fas fa-edit me-1"></i> ویرایش
+                  </a>
+                  <a class="btn btn-sm btn-outline-primary d-inline-flex align-items-center justify-content-center shadow-sm"
+                    href="{{ url_for('tasks.convert_resolution', res_id=r.id) }}"
+                    style="border-radius: 8px; padding: 5px 9px; font-size: 12px;" title="تبدیل به وظیفه اجرایی">
+                    <i class="fas fa-tasks me-1"></i> وظیفه
+                  </a>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Status Legend Footer -->
+      <div class="table-legend-bar">
+        <span class="legend-title"><i class="fas fa-info-circle text-primary me-1"></i> راهنمای وضعیت:</span>
+        <div class="legend-items">
+          <span class="legend-item"><span class="status-dot dot-completed"></span> تکمیل شده</span>
+          <span class="legend-item"><span class="status-dot dot-in-progress"></span> در حال انجام</span>
+          <span class="legend-item"><span class="status-dot dot-approved"></span> تأیید شده</span>
+          <span class="legend-item"><span class="status-dot dot-pending"></span> در انتظار</span>
+        </div>
+      </div>
+      {% else %}
+      <div class="p-5 text-center text-muted">
+        <i class="fas fa-file-excel fa-3x mb-3 text-secondary opacity-50"></i>
+        <h5 class="fw-bold">هنوز مصوبه‌ای ثبت نشده است</h5>
+        <p class="small text-muted">می‌توانید برای هر جلسه مصوبات جدید تعریف کرده و وضعیت آن‌ها را پیگیری کنید.</p>
+        <a href="{{ url_for('resolutions_bp.resolutions_new') }}" class="btn btn-primary btn-sm mt-2">
+          <i class="fas fa-plus me-1"></i> افزودن اولین مصوبه
+        </a>
+      </div>
+      {% endif %}
+    </div>
+
+    {% if has_prev or has_next %}
+    <div class="card-footer d-flex justify-content-between p-3">
+      {% if has_prev %}
+      <a class="btn btn-sm btn-ghost" href="{{ url_for('resolutions_bp.resolutions_list', page=page-1, status=status or None, q=q or None) }}">
+        <i class="fas fa-chevron-right me-1"></i> جدیدتر
+      </a>
+      {% else %}<span></span>{% endif %}
+      
+      {% if has_next %}
+      <a class="btn btn-sm btn-ghost" href="{{ url_for('resolutions_bp.resolutions_list', page=page+1, status=status or None, q=q or None) }}">
+        قدیمی‌تر <i class="fas fa-chevron-left ms-1"></i>
+      </a>
+      {% endif %}
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

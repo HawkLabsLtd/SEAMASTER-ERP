@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+{% block title %}تولدهای امروز{% endblock %}
+{% block content %}
+<style>
+.birthdays{direction:rtl}
+.card{background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:12px;margin-bottom:10px}
+.name{font-weight:700;color:#111827}
+.phone{color:#1f2937}
+.empty{color:#6b7280}
+</style>
+<div class="birthdays">
+  <h2>تولدهای امروز — {{ today_jalali_en }} ({{ today_pair_en }})</h2>
+  {% if items %}
+    {% for m in items %}
+      <div class="card">
+        <div class="name">{{ m.full_name }}</div>
+        {% if m.phone_number %}
+          <div class="phone inline">
+            ☎ {{ m.phone_number }}
+            <a class="btn btn-light" href="tel:{{ m.phone_number }}">تماس</a>
+            <a class="btn btn-primary" href="{{ url_for('members_bp.members_birthdays_call', id=m.id) }}">Cisco</a>
+            <a class="btn btn-secondary" href="{{ url_for('members_bp.members_birthdays_call_grandstream', id=m.id) }}">Grandstream</a>
+          </div>
+        {% endif %}
+      </div>
+    {% endfor %}
+  {% else %}
+    <div class="empty">موردی یافت نشد.</div>
+  {% endif %}
+</div>
+{% endblock %}

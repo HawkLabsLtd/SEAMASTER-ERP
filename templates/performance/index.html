@@ -1,0 +1,778 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-header">
+    <h2 class="page-title">داشبورد عملکرد سئو</h2>
+    <div class="page-actions">
+        <button type="button" class="btn btn-primary btn-sm"
+            onclick="document.getElementById('uploadModal').style.display='flex'">
+            <i class="fas fa-upload me-1"></i>بروزرسانی داده‌ها
+        </button>
+    </div>
+</div>
+
+<!-- Upload Modal -->
+<div id="uploadModal" class="modal-overlay" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>آپلود فایل‌های CSV</h3>
+            <button type="button" class="modal-close"
+                onclick="document.getElementById('uploadModal').style.display='none'">&times;</button>
+        </div>
+        <form action="{{ url_for('performance_bp.update_data') }}" method="post" enctype="multipart/form-data">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <div class="modal-body">
+                <p class="text-muted mb-3">فایل‌های CSV مورد نیاز را انتخاب کنید:</p>
+
+                <div class="upload-grid">
+                    <div class="upload-item">
+                        <label>Chart.csv (روند)</label>
+                        <input type="file" name="chart_file" accept=".csv" class="form-control form-control-sm">
+                    </div>
+                    <div class="upload-item">
+                        <label>Clarity.csv (کلریتی)</label>
+                        <input type="file" name="clarity_file" accept=".csv" class="form-control form-control-sm">
+                    </div>
+                    <div class="upload-item">
+                        <label>Pages.csv (صفحات)</label>
+                        <input type="file" name="pages_file" accept=".csv" class="form-control form-control-sm">
+                    </div>
+                    <div class="upload-item">
+                        <label>Queries.csv (کوئری‌ها)</label>
+                        <input type="file" name="queries_file" accept=".csv" class="form-control form-control-sm">
+                    </div>
+                    <div class="upload-item">
+                        <label>Countries.csv (کشورها)</label>
+                        <input type="file" name="countries_file" accept=".csv" class="form-control form-control-sm">
+                    </div>
+                    <div class="upload-item">
+                        <label>Devices.csv (دستگاه‌ها)</label>
+                        <input type="file" name="devices_file" accept=".csv" class="form-control form-control-sm">
+                    </div>
+                    <div class="upload-item">
+                        <label>Filters.csv (فیلترها)</label>
+                        <input type="file" name="filters_file" accept=".csv" class="form-control form-control-sm">
+                    </div>
+                    <div class="upload-item">
+                        <label>Dates.csv (تاریخ‌ها)</label>
+                        <input type="file" name="dates_file" accept=".csv" class="form-control form-control-sm">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary"
+                    onclick="document.getElementById('uploadModal').style.display='none'">انصراف</button>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-upload me-1"></i>آپلود و بروزرسانی
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ROW 1: KPIs -->
+<div class="dashboard-grid kpi-grid mb-4">
+    <div class="card kpi-card">
+        <div class="card-body text-center">
+            <h4 class="text-muted">کل کلیک‌ها</h4>
+            <h2 class="text-primary">{{ "{:,}".format(kpis.clicks|int) }}</h2>
+        </div>
+    </div>
+    <div class="card kpi-card">
+        <div class="card-body text-center">
+            <h4 class="text-muted">کل نمایش‌ها</h4>
+            <h2 class="text-info">{{ "{:,}".format(kpis.impressions|int) }}</h2>
+        </div>
+    </div>
+    <div class="card kpi-card">
+        <div class="card-body text-center">
+            <h4 class="text-muted">میانگین CTR</h4>
+            <h2 class="text-success">{{ "%.2f"|format(kpis.ctr) }}%</h2>
+        </div>
+    </div>
+    <div class="card kpi-card">
+        <div class="card-body text-center">
+            <h4 class="text-muted">میانگین موقعیت</h4>
+            <h2 class="text-warning">{{ "%.1f"|format(kpis.position) }}</h2>
+        </div>
+    </div>
+</div>
+
+<!-- ROW 2: Trend Chart (FULL WIDTH) -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h3>روند کلیک و نمایش</h3>
+    </div>
+    <div class="card-body">
+        <div class="chart-container" style="height: 350px; position: relative;">
+            <canvas id="trendChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- ROW 3: 4 Cards (Clarity x2 + GSC Tables x2) -->
+<div class="four-card-grid mb-4">
+    <!-- Clarity Card 1: Sessions & Scroll -->
+    <div class="card">
+        <div class="card-header">
+            <h3>آمار کلریتی</h3>
+        </div>
+        <div class="card-body">
+            <div class="stat-item">
+                <span class="text-muted">نشست‌ها</span>
+                <h4 class="text-primary mb-0">{{ data.clarity.sessions.get('Total sessions', '0') }}</h4>
+            </div>
+            <div class="stat-item mt-3">
+                <span class="text-muted">عمق اسکرول</span>
+                <h4 class="text-success mb-0">{{ data.clarity.scroll_depth }}%</h4>
+            </div>
+        </div>
+    </div>
+
+    <!-- Clarity Card 2: Insights -->
+    <div class="card">
+        <div class="card-header">
+            <h3>بینش‌ها</h3>
+        </div>
+        <div class="card-body p-0">
+            <table class="table table-sm mb-0">
+                <tbody>
+                    {% for i in data.clarity.insights[:4] %}
+                    <tr>
+                        <td>{{ i.name }}</td>
+                        <td class="text-left">{{ i.value }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- GSC Card 1: Top Pages -->
+    <div class="card">
+        <div class="card-header">
+            <h3>صفحات برتر گوگل</h3>
+        </div>
+        <div class="card-body p-0">
+            <table class="table table-sm mb-0">
+                <tbody>
+                    {% for p in data.pages[:4] %}
+                    <tr>
+                        <td class="text-truncate" style="max-width: 150px;">{{ p['Top pages'] }}</td>
+                        <td>{{ p['Clicks'] }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- GSC Card 2: Top Queries -->
+    <div class="card">
+        <div class="card-header">
+            <h3>کوئری‌های برتر</h3>
+        </div>
+        <div class="card-body p-0">
+            <table class="table table-sm mb-0">
+                <tbody>
+                    {% for q in data.queries[:4] %}
+                    <tr>
+                        <td>{{ q['Top queries'] }}</td>
+                        <td>{{ q['Clicks'] }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- ROW 4: Executive Sections (بخش اجرایی) - AJAX Powered -->
+<div class="card mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h3>بخش‌های اجرایی</h3>
+        <select id="sectionSelect" class="form-control form-control-sm" style="width: auto;">
+            {% for s in subsections_list %}
+            <option value="{{ s }}" {% if s==selected_section %}selected{% endif %}>{{ s }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="card-body" id="subsectionContent">
+        <div id="subsectionLoading" style="display: none;" class="text-center py-4">
+            <span class="spinner"></span> در حال بارگذاری...
+        </div>
+        <div id="subsectionData">
+            {% if subsection_data.pages %}
+            <div class="subsection-kpis mb-3">
+                <div class="subsection-kpi">
+                    <span class="text-muted">کلیک‌ها</span>
+                    <h3 class="text-primary mb-0" id="subClicks">{{ "{:,}".format(subsection_data.clicks) }}</h3>
+                    <span id="subClicksIndicator" class="{% if subsection_data.clicks > 100 %}indicator-up">▲ رشد{% elif
+                        subsection_data.clicks > 50 %}indicator-neutral">● متوسط{% else %}indicator-down">▼ نیاز به
+                        بهبود{% endif %}</span>
+                </div>
+                <div class="subsection-kpi">
+                    <span class="text-muted">نمایش‌ها</span>
+                    <h3 class="text-info mb-0" id="subImpressions">{{ "{:,}".format(subsection_data.impressions) }}</h3>
+                    <span id="subImpressionsIndicator" class="{% if subsection_data.impressions > 1000 %}indicator-up">▲
+                        رشد{% elif subsection_data.impressions > 500 %}indicator-neutral">● متوسط{% else
+                        %}indicator-down">▼ نیاز به بهبود{% endif %}</span>
+                </div>
+                <div class="subsection-kpi">
+                    <span class="text-muted">نرخ کلیک</span>
+                    <h3 class="text-success mb-0" id="subCtr">{{ "%.2f"|format(subsection_data.ctr) }}%</h3>
+                    <span id="subCtrIndicator" class="{% if subsection_data.ctr > 5 %}indicator-up">▲ عالی{% elif
+                        subsection_data.ctr > 2 %}indicator-neutral">● متوسط{% else %}indicator-down">▼ نیاز به بهبود{%
+                        endif %}</span>
+                </div>
+            </div>
+            <table class="table table-bordered">
+                <thead class="bg-light">
+                    <tr>
+                        <th>آدرس صفحه</th>
+                        <th>کلیک</th>
+                        <th>نمایش</th>
+                    </tr>
+                </thead>
+                <tbody id="subPagesTable">
+                    {% for p in subsection_data.pages %}
+                    <tr>
+                        <td class="text-truncate" style="max-width: 300px;">{{ p['Top pages'] }}</td>
+                        <td>{{ p['Clicks'] }}</td>
+                        <td>{{ p['Impressions'] }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="alert alert-warning">داده‌ای برای این بخش یافت نشد.</div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- ROW 5: Heatmap -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h3>نقشه حرارتی کلیک‌ها</h3>
+    </div>
+    <div class="card-body" style="overflow-x: auto;">
+        {% if heatmap_weeks %}
+        <table class="table table-bordered text-center" style="min-width: 600px;">
+            <thead>
+                <tr>
+                    <th class="bg-light">روز / هفته</th>
+                    {% for w in heatmap_weeks %}
+                    <th class="bg-light small">{{ w }}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for day in heatmap_days %}
+                <tr>
+                    <td class="fw-bold bg-light small">{{ day }}</td>
+                    {% for w in heatmap_weeks %}
+                    {% set val = heatmap_grid.get((day, w), 0) %}
+                    <td
+                        style="background-color: rgba(67, 24, 255, {{ val / 500 }}); color: {% if val > 250 %}white{% else %}black{% endif %};">
+                        <small>{{ val|int }}</small>
+                    </td>
+                    {% endfor %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="alert alert-warning">داده‌ای برای نقشه حرارتی یافت نشد.</div>
+        {% endif %}
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    (function () {
+        // Chart data from Flask
+        var labels = {{ chart_data.labels | tojson
+    }};
+    var clicks = {{ chart_data.clicks | tojson }};
+    var impressions = {{ chart_data.impressions | tojson }};
+
+    console.log('Data check:', labels.length, 'points');
+
+    if (labels && labels.length > 0) {
+        var ctx = document.getElementById('trendChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'کلیک‌ها',
+                        data: clicks,
+                        borderColor: '#4318FF',
+                        backgroundColor: 'rgba(67, 24, 255, 0.1)',
+                        borderWidth: 2,
+                        tension: 0.4,
+                        fill: true,
+                        yAxisID: 'y'
+                    },
+                    {
+                        label: 'نمایش‌ها',
+                        data: impressions,
+                        borderColor: '#6AD2FF',
+                        backgroundColor: 'rgba(106, 210, 255, 0.1)',
+                        borderWidth: 2,
+                        tension: 0.4,
+                        fill: true,
+                        yAxisID: 'y1'
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: { legend: { position: 'top' } },
+                scales: {
+                    x: { grid: { display: false } },
+                    y: { type: 'linear', display: true, position: 'left' },
+                    y1: { type: 'linear', display: true, position: 'right', grid: { drawOnChartArea: false } }
+                }
+            }
+        });
+    } else {
+        document.getElementById('trendChart').parentElement.innerHTML = '<div class="alert alert-warning">داده‌ای برای نمودار یافت نشد.</div>';
+    }
+}) ();
+
+    // AJAX for subsection dropdown
+    document.getElementById('sectionSelect').addEventListener('change', function () {
+        var section = this.value;
+        var loadingEl = document.getElementById('subsectionLoading');
+        var dataEl = document.getElementById('subsectionData');
+
+        loadingEl.style.display = 'block';
+        dataEl.style.opacity = '0.5';
+
+        fetch('/performance/api/subsection/' + encodeURIComponent(section))
+            .then(function (response) { return response.json(); })
+            .then(function (data) {
+                loadingEl.style.display = 'none';
+                dataEl.style.opacity = '1';
+
+                if (data.error) {
+                    dataEl.innerHTML = '<div class="alert alert-warning">' + data.error + '</div>';
+                    return;
+                }
+
+                // Update KPIs
+                document.getElementById('subClicks').textContent = data.clicks.toLocaleString();
+                document.getElementById('subImpressions').textContent = data.impressions.toLocaleString();
+                document.getElementById('subCtr').textContent = data.ctr.toFixed(2) + '%';
+
+                // Update indicators
+                updateIndicator('subClicksIndicator', data.clicks, 100, 50, 'رشد', 'متوسط', 'نیاز به بهبود');
+                updateIndicator('subImpressionsIndicator', data.impressions, 1000, 500, 'رشد', 'متوسط', 'نیاز به بهبود');
+                updateIndicator('subCtrIndicator', data.ctr, 5, 2, 'عالی', 'متوسط', 'نیاز به بهبود');
+
+                // Update table
+                var tbody = document.getElementById('subPagesTable');
+                tbody.innerHTML = '';
+                data.pages.forEach(function (p) {
+                    var tr = document.createElement('tr');
+                    tr.innerHTML = '<td class="text-truncate" style="max-width: 300px;">' + p.url + '</td>' +
+                        '<td>' + p.clicks + '</td>' +
+                        '<td>' + p.impressions + '</td>';
+                    tbody.appendChild(tr);
+                });
+
+                if (data.pages.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="3" class="text-center text-muted">داده‌ای یافت نشد</td></tr>';
+                }
+            })
+            .catch(function (err) {
+                loadingEl.style.display = 'none';
+                dataEl.style.opacity = '1';
+                console.error('Error loading subsection:', err);
+            });
+    });
+
+    function updateIndicator(id, value, highThreshold, medThreshold, highLabel, medLabel, lowLabel) {
+        var el = document.getElementById(id);
+        if (value > highThreshold) {
+            el.className = 'indicator-up';
+            el.textContent = '▲ ' + highLabel;
+        } else if (value > medThreshold) {
+            el.className = 'indicator-neutral';
+            el.textContent = '● ' + medLabel;
+        } else {
+            el.className = 'indicator-down';
+            el.textContent = '▼ ' + lowLabel;
+        }
+    }
+</script>
+
+<style>
+    /* KPI Grid */
+    .kpi-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 1rem;
+    }
+
+    /* 4 Card Grid */
+    .four-card-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 1rem;
+    }
+
+    @media (max-width: 992px) {
+
+        .kpi-grid,
+        .four-card-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+
+    @media (max-width: 576px) {
+
+        .kpi-grid,
+        .four-card-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    /* Subsection KPIs */
+    .subsection-kpis {
+        display: flex;
+        gap: 2rem;
+    }
+
+    .subsection-kpi {
+        background: #f8f9fa;
+        padding: 1rem;
+        border-radius: 8px;
+        text-align: center;
+        flex: 1;
+    }
+
+    /* Performance Indicators */
+    .indicator-up {
+        display: inline-block;
+        margin-top: 0.25rem;
+        padding: 0.2rem 0.5rem;
+        font-size: 0.75rem;
+        color: #10b981;
+        background: #d1fae5;
+        border-radius: 4px;
+    }
+
+    .indicator-down {
+        display: inline-block;
+        margin-top: 0.25rem;
+        padding: 0.2rem 0.5rem;
+        font-size: 0.75rem;
+        color: #ef4444;
+        background: #fee2e2;
+        border-radius: 4px;
+    }
+
+    .indicator-neutral {
+        display: inline-block;
+        margin-top: 0.25rem;
+        padding: 0.2rem 0.5rem;
+        font-size: 0.75rem;
+        color: #f59e0b;
+        background: #fef3c7;
+        border-radius: 4px;
+    }
+
+    /* Modal Styles */
+    .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+    }
+
+    .modal-content {
+        background: white;
+        border-radius: 12px;
+        width: 90%;
+        max-width: 700px;
+        max-height: 90vh;
+        overflow-y: auto;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    }
+
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid #e5e7eb;
+        background: #f9fafb;
+    }
+
+    .modal-header h3 {
+        margin: 0;
+        font-size: 1.25rem;
+        color: #1f2937;
+    }
+
+    .modal-close {
+        background: none;
+        border: none;
+        font-size: 1.5rem;
+        cursor: pointer;
+        color: #6b7280;
+        padding: 0;
+        line-height: 1;
+    }
+
+    .modal-close:hover {
+        color: #1f2937;
+    }
+
+    .modal-body {
+        padding: 1.5rem;
+    }
+
+    .modal-footer {
+        display: flex;
+        justify-content: flex-end;
+        gap: 0.75rem;
+        padding: 1rem 1.5rem;
+        border-top: 1px solid #e5e7eb;
+        background: #f9fafb;
+    }
+
+    .upload-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1rem;
+    }
+
+    .upload-item {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .upload-item label {
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: #374151;
+    }
+
+    .form-control {
+        padding: 0.5rem;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        font-size: 0.875rem;
+    }
+
+    .btn-secondary {
+        background: #6b7280;
+        color: white;
+    }
+
+    @media (max-width: 576px) {
+        .upload-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    /* Cards */
+    .card {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        overflow: hidden;
+        border: 1px solid #e5e7eb;
+    }
+
+    .card-header {
+        padding: 0.75rem 1rem;
+        border-bottom: 1px solid #f3f4f6;
+        background: #f9fafb;
+    }
+
+    .card-header h3 {
+        margin: 0;
+        font-size: 1rem;
+        color: #374151;
+    }
+
+    .card-body {
+        padding: 1rem;
+    }
+
+    /* KPIs */
+    .kpi-card h4 {
+        margin: 0 0 0.5rem 0;
+        font-size: 0.85rem;
+    }
+
+    .kpi-card h2 {
+        margin: 0;
+        font-size: 1.75rem;
+    }
+
+    /* Stat Items */
+    .stat-item {
+        text-align: center;
+    }
+
+    /* Table */
+    .table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .table th,
+    .table td {
+        padding: 0.5rem;
+        text-align: right;
+        border-bottom: 1px solid #eee;
+    }
+
+    .table th {
+        font-weight: 600;
+        color: #4b5563;
+        background: #f9fafb;
+    }
+
+    /* Chart */
+    .chart-container {
+        width: 100%;
+    }
+
+    /* Colors */
+    .text-muted {
+        color: #6b7280;
+    }
+
+    .text-primary {
+        color: #3b82f6;
+    }
+
+    .text-info {
+        color: #06b6d4;
+    }
+
+    .text-warning {
+        color: #f59e0b;
+    }
+
+    .text-success {
+        color: #10b981;
+    }
+
+    /* Page Header */
+    .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.5rem;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid #e5e7eb;
+    }
+
+    .page-title {
+        margin: 0;
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: #1f2937;
+    }
+
+    /* Buttons */
+    .btn {
+        padding: 0.5rem 1rem;
+        border-radius: 4px;
+        border: none;
+        cursor: pointer;
+        font-weight: 500;
+    }
+
+    .btn-sm {
+        padding: 0.25rem 0.75rem;
+        font-size: 0.875rem;
+    }
+
+    .btn-primary {
+        background: #3b82f6;
+        color: white;
+    }
+
+    /* Utils */
+    .mb-4 {
+        margin-bottom: 1.5rem;
+    }
+
+    .mb-3 {
+        margin-bottom: 1rem;
+    }
+
+    .mb-0 {
+        margin-bottom: 0;
+    }
+
+    .mt-3 {
+        margin-top: 1rem;
+    }
+
+    .p-0 {
+        padding: 0;
+    }
+
+    .bg-light {
+        background-color: #f8f9fa;
+    }
+
+    .text-center {
+        text-align: center;
+    }
+
+    .text-truncate {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .fw-bold {
+        font-weight: 600;
+    }
+
+    .small {
+        font-size: 0.875rem;
+    }
+
+    .d-flex {
+        display: flex;
+    }
+
+    .justify-content-between {
+        justify-content: space-between;
+    }
+
+    .align-items-center {
+        align-items: center;
+    }
+
+    .gap-2 {
+        gap: 0.5rem;
+    }
+
+    .text-left {
+        text-align: left;
+    }
+</style>
+{% endblock %}

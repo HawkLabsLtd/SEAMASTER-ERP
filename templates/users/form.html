@@ -1,0 +1,327 @@
+{% extends 'base.html' %}
+{% block title %}{% if user %}ویرایش دسترسی مسئول: {{ user.name }}{% else %}افزودن مسئول جدید{% endif %}{% endblock %}
+
+{% block content %}
+<div class="dashboard-page-container" style="max-width: 900px; margin: 0 auto;">
+  <div class="page-header d-flex align-items-center justify-content-between mb-4 flex-wrap gap-3">
+    <div>
+      <h2 class="page-title mb-1">
+        <i class="fas fa-user-shield text-primary me-2"></i>
+        {% if user %}ویرایش اطلاعات و دسترسی‌های: <span class="text-primary">{{ user.name }}</span>{% else %}تعریف مسئول جدید و تنظیم دسترسی ورود{% endif %}
+      </h2>
+      <p class="text-muted small mb-0">تعیین نام کاربری، کلمه عبور و محدودسازی صفحات قابل مشاهده در سامانه</p>
+    </div>
+    <div>
+      <a href="{{ url_for('users_bp.user_list') }}" class="btn btn-secondary btn-sm" style="border-radius: 8px;">
+        <i class="fas fa-arrow-right me-1"></i> بازگشت به فهرست
+      </a>
+    </div>
+  </div>
+
+  <form method="post" class="form" id="userForm">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+    <!-- 1. Basic Information Card -->
+    <div class="card agenda-card mb-4">
+      <div class="agenda-card-header">
+        <h5 class="agenda-card-title mb-0"><i class="fas fa-id-card text-primary me-2"></i> اطلاعات هویتی و پرسنلی</h5>
+      </div>
+      <div class="agenda-card-body p-4">
+        <div class="row g-3">
+          <div class="col-md-7">
+            <label for="name" class="form-label fw-bold small text-dark mb-1">
+              نام و نام خانوادگی / عنوان سازمانی <span class="text-danger">*</span>
+            </label>
+            <input type="text" id="name" name="name" class="form-control" required 
+              placeholder="مثال: مهندس علی رضایی یا روابط عمومی"
+              value="{{ user.name | e if user else '' }}" style="border-radius: 8px;">
+          </div>
+          <div class="col-md-5">
+            <label for="email" class="form-label fw-bold small text-dark mb-1">
+              پست الکترونیک (اختیاری)
+            </label>
+            <input type="email" id="email" name="email" class="form-control" 
+              placeholder="name@example.com"
+              value="{{ user.email | e if user and user.email else '' }}" style="border-radius: 8px; direction: ltr; text-align: left;">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. Login & Credentials Card -->
+    <div class="card agenda-card mb-4">
+      <div class="agenda-card-header d-flex align-items-center justify-content-between">
+        <h5 class="agenda-card-title mb-0"><i class="fas fa-key text-primary me-2"></i> حساب کاربری و ورود به سامانه</h5>
+        <div class="form-check form-switch mb-0 d-flex align-items-center gap-2">
+          <input class="form-check-input" type="checkbox" id="login_enabled" name="login_enabled" value="1" 
+            {% if (user and user.is_login_enabled) or not user %}checked{% endif %} style="cursor: pointer; width: 40px; height: 20px;">
+          <label class="form-check-label fw-bold small text-dark" for="login_enabled" style="cursor: pointer;">
+            امکان ورود به سامانه
+          </label>
+        </div>
+      </div>
+      
+      <div id="loginDetails" class="agenda-card-body p-4">
+        <div class="row g-3 mb-3">
+          <div class="col-md-4">
+            <label for="username" class="form-label fw-bold small text-dark mb-1">
+              نام کاربری جهت ورود <span class="text-danger">*</span>
+            </label>
+            <div class="input-group">
+              <span class="input-group-text bg-light text-muted" style="border-top-right-radius: 8px; border-bottom-right-radius: 8px;">@</span>
+              <input type="text" id="username" name="username" class="form-control" 
+                placeholder="rezaei" autocomplete="username"
+                value="{{ user.username | e if user and user.username else '' }}" 
+                style="border-top-left-radius: 8px; border-bottom-left-radius: 8px; direction: ltr; text-align: left;">
+            </div>
+            <div class="form-text small text-muted">حروف انگلیسی و ارقام (بدون فاصله)</div>
+          </div>
+
+          <div class="col-md-4">
+            <label for="password" class="form-label fw-bold small text-dark mb-1">
+              رمز عبور {% if not user %}<span class="text-danger">*</span>{% else %}<span class="text-muted small">(در صورت تغییر وارد شود)</span>{% endif %}
+            </label>
+            <input type="password" id="password" name="password" class="form-control" 
+              placeholder="••••••••" autocomplete="new-password" style="border-radius: 8px; direction: ltr;">
+          </div>
+
+          <div class="col-md-4">
+            <label for="role" class="form-label fw-bold small text-dark mb-1">
+              سطح دسترسی کلی (نقش)
+            </label>
+            <select name="role" id="role" class="form-select" style="border-radius: 8px;">
+              <option value="staff" {% if not user or user.role == 'staff' %}selected{% endif %}>مسئول اجرایی (Staff)</option>
+              <option value="manager" {% if user and user.role == 'manager' %}selected{% endif %}>مدیر بخش (Manager)</option>
+              <option value="admin" {% if user and user.role == 'admin' %}selected{% endif %}>مدیر ارشد سامانه (Admin)</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- 3. Granular Page Permissions Matrix -->
+        <div class="mt-4 pt-3 border-top">
+          <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+            <div>
+              <h6 class="fw-bold text-dark mb-1"><i class="fas fa-lock-open text-primary me-2"></i> مجوز دسترسی به صفحات و بخش‌ها</h6>
+              <span class="text-muted small">مشخص کنید این مسئول پس از ورود، به کدام صفحات سامانه دسترسی داشته باشد:</span>
+            </div>
+            <div class="d-flex gap-2">
+              <button type="button" class="btn btn-sm btn-outline-primary" onclick="toggleAllPerms(true)" style="border-radius: 6px; font-size: 11.5px;">
+                <i class="fas fa-check-double me-1"></i> انتخاب همه
+              </button>
+              <button type="button" class="btn btn-sm btn-outline-secondary" onclick="toggleAllPerms(false)" style="border-radius: 6px; font-size: 11.5px;">
+                <i class="fas fa-times me-1"></i> لغو همه
+              </button>
+            </div>
+          </div>
+
+          <div class="row g-3">
+            <!-- Group: Dashboards -->
+            <div class="col-md-6">
+              <div class="p-3 bg-light rounded-3 border h-100">
+                <div class="fw-bold text-primary small mb-2"><i class="fas fa-chart-pie me-1"></i> پیشخوان و دستورکار</div>
+                <div class="d-flex flex-column gap-2">
+                  <label class="d-flex align-items-center gap-2 small cursor-pointer">
+                    <input type="checkbox" name="permissions[]" value="dashboard.view" class="perm-check form-check-input" {% if user_perms.get('dashboard.view') or not user %}checked{% endif %}>
+                    <span>مشاهده داشبورد اصلی</span>
+                  </label>
+                  <label class="d-flex align-items-center gap-2 small cursor-pointer">
+                    <input type="checkbox" name="permissions[]" value="today.view" class="perm-check form-check-input" {% if user_perms.get('today.view') or not user %}checked{% endif %}>
+                    <span>مشاهده دستورکار روزانه</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <!-- Group: Meetings & Resolutions -->
+            <div class="col-md-6">
+              <div class="p-3 bg-light rounded-3 border h-100">
+                <div class="fw-bold text-primary small mb-2"><i class="fas fa-handshake me-1"></i> جلسات و مصوبات</div>
+                <div class="d-flex flex-column gap-2">
+                  <label class="d-flex align-items-center gap-2 small cursor-pointer">
+                    <input type="checkbox" name="permissions[]" value="meetings.view" class="perm-check form-check-input" {% if user_perms.get('meetings.view') or not user %}checked{% endif %}>
+                    <span>مشاهده فهرست و جزئیات جلسات</span>
+                  </label>
+                  <label class="d-flex align-items-center gap-2 small cursor-pointer">
+                    <input type="checkbox" name="permissions[]" value="meetings.manage" class="perm-check form-check-input" {% if user_perms.get('meetings.manage') %}checked{% endif %}>
+                    <span>ایجاد، ویرایش و حذف جلسات</span>
+                  </label>
+                  <label class="d-flex align-items-center gap-2 small cursor-pointer">
+                    <input type="checkbox" name="permissions[]" value="resolutions.view" class="perm-check form-check-input" {% if user_perms.get('resolutions.view') or not user %}checked{% endif %}>
+                    <span>مشاهده و پیگیری مصوبات</span>
+                  </label>
+                  <label class="d-flex align-items-center gap-2 small cursor-pointer">
+                    <input type="checkbox" name="permissions[]" value="resolutions.manage" class="perm-check form-check-input" {% if user_perms.get('resolutions.manage') %}checked{% endif %}>
+                    <span>ثبت مصوبه جدید، واگذاری و تغییر پیشرفت</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <!-- Group: Tasks & Council -->
+            <div class="col-md-6">
+              <div class="p-3 bg-light rounded-3 border h-100">
+                <div class="fw-bold text-primary small mb-2"><i class="fas fa-tasks me-1"></i> وظایف اجرایی و شورا</div>
+                <div class="d-flex flex-column gap-2">
+                  <label class="d-flex align-items-center gap-2 small cursor-pointer">
+                    <input type="checkbox" name="permissions[]" value="tasks.view" class="perm-check form-check-input" {% if user_perms.get('tasks.view') or not user %}checked{% endif %}>
+                    <span>مشاهده تابلو وظایف من</span>
+                  </label>
+                  <label class="d-flex align-items-center gap-2 small cursor-pointer">
+                    <input type="checkbox" name="permissions[]" value="tasks.manage" class="perm-check form-check-input" {% if user_perms.get('tasks.manage') %}checked{% endif %}>
+                    <span>تعریف و حذف وظایف اجرایی</span>
+                  </label>
+                  <label class="d-flex align-items-center gap-2 small cursor-pointer">
+                    <input type="checkbox" name="permissions[]" value="projects.view" class="perm-check form-check-input" {% if user_perms.get('projects.view') or not user %}checked{% endif %}>
+                    <span>مشاهده پروژه‌ها، گانت چارت و کانبان</span>
+                  </label>
+                  <label class="d-flex align-items-center gap-2 small cursor-pointer">
+                    <input type="checkbox" name="permissions[]" value="projects.manage" class="perm-check form-check-input" {% if user_perms.get('projects.manage') or not user %}checked{% endif %}>
+                    <span>مدیریت کامل پروژه، تعریف فعالیت‌ها، ویرایش و Drag & Drop</span>
+                  </label>
+                  <label class="d-flex align-items-center gap-2 small cursor-pointer">
+                    <input type="checkbox" name="permissions[]" value="timeline.view" class="perm-check form-check-input" {% if user_perms.get('timeline.view') or not user %}checked{% endif %}>
+                    <span>پیگیری مصوبات هیئت رئیسه و شورای مدیران</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <!-- Group: Org & Dashboards -->
+            <div class="col-md-6">
+              <div class="p-3 bg-light rounded-3 border h-100">
+                <div class="fw-bold text-primary small mb-2"><i class="fas fa-sitemap me-1"></i> چارت، تفاهم‌نامه‌ها و گزارشات</div>
+                <div class="d-flex flex-column gap-2">
+                  <label class="d-flex align-items-center gap-2 small cursor-pointer">
+                    <input type="checkbox" name="permissions[]" value="org_chart.view" class="perm-check form-check-input" {% if user_perms.get('org_chart.view') or not user %}checked{% endif %}>
+                    <span>نمودار سلسله‌مراتب سازمانی (چارت)</span>
+                  </label>
+                  <label class="d-flex align-items-center gap-2 small cursor-pointer">
+                    <input type="checkbox" name="permissions[]" value="agreements.view" class="perm-check form-check-input" {% if user_perms.get('agreements.view') or not user %}checked{% endif %}>
+                    <span>داشبورد تفاهم‌نامه‌ها و قراردادها</span>
+                  </label>
+                  <label class="d-flex align-items-center gap-2 small cursor-pointer">
+                    <input type="checkbox" name="permissions[]" value="events.view" class="perm-check form-check-input" {% if user_perms.get('events.view') or not user %}checked{% endif %}>
+                    <span>تقویم رویدادها و نشست‌ها</span>
+                  </label>
+                  <label class="d-flex align-items-center gap-2 small cursor-pointer">
+                    <input type="checkbox" name="permissions[]" value="users.manage" class="perm-check form-check-input" {% if user_perms.get('users.manage') %}checked{% endif %}>
+                    <span>مدیریت مسئولان و کاربران</span>
+                  </label>
+                  <label class="d-flex align-items-center gap-2 small cursor-pointer">
+                    <input type="checkbox" name="permissions[]" value="energy.view" class="perm-check form-check-input" {% if user_perms.get('energy.view') or not user %}checked{% endif %}>
+                    <span>داشبورد انرژی</span>
+                  </label>
+                  <label class="d-flex align-items-center gap-2 small cursor-pointer">
+                    <input type="checkbox" name="permissions[]" value="hr.view" class="perm-check form-check-input" {% if user_perms.get('hr.view') %}checked{% endif %}>
+                    <span>داشبورد منابع انسانی (اطلاعات پرسنلی)</span>
+                  </label>
+                  <label class="d-flex align-items-center gap-2 small cursor-pointer">
+                    <input type="checkbox" name="permissions[]" value="email.view" class="perm-check form-check-input" {% if user_perms.get('email.view') %}checked{% endif %}>
+                    <span>داشبورد کمپین‌های ایمیلی</span>
+                  </label>
+                  <label class="d-flex align-items-center gap-2 small cursor-pointer">
+                    <input type="checkbox" name="permissions[]" value="performance.view" class="perm-check form-check-input" {% if user_perms.get('performance.view') %}checked{% endif %}>
+                    <span>داشبورد عملکرد وب‌سایت</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. Project-Level Access Control Card -->
+    <div class="card agenda-card mb-4">
+      <div class="agenda-card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+        <div>
+          <h5 class="agenda-card-title mb-1"><i class="fas fa-folder-tree text-primary me-2"></i> دسترسی به پروژه‌های سازمانی (Project Access)</h5>
+          <span class="text-muted small">مشخص کنید این مسئول مجاز به مشاهده و فعالیت در کدام پروژه‌ها می‌باشد:</span>
+        </div>
+        <div class="d-flex gap-2">
+          <button type="button" class="btn btn-sm btn-outline-primary" onclick="toggleAllProjects(true)" style="border-radius: 6px; font-size: 11.5px;">
+            <i class="fas fa-check-double me-1"></i> انتخاب همه پروژه‌ها
+          </button>
+          <button type="button" class="btn btn-sm btn-outline-secondary" onclick="toggleAllProjects(false)" style="border-radius: 6px; font-size: 11.5px;">
+            <i class="fas fa-times me-1"></i> لغو همه
+          </button>
+        </div>
+      </div>
+      <div class="agenda-card-body p-4">
+        {% if all_projects and all_projects|length > 0 %}
+        <div class="row g-3">
+          {% for p in all_projects %}
+          <div class="col-md-6">
+            <div class="p-3 bg-light rounded-3 border h-100 d-flex align-items-start gap-3" style="transition: all 0.2s;">
+              <div class="form-check pt-1">
+                <input class="form-check-input project-check" type="checkbox" name="allowed_projects[]" value="{{ p.id }}" id="proj_check_{{ p.id }}"
+                  {% if p.id in user_project_ids or (not user and loop.first) %}checked{% endif %} style="cursor: pointer; width: 18px; height: 18px;">
+              </div>
+              <div class="flex-grow-1 cursor-pointer" onclick="document.getElementById('proj_check_{{ p.id }}').click()">
+                <div class="d-flex align-items-center justify-content-between mb-1">
+                  <span class="fw-bold text-dark fs-6">{{ p.title }}</span>
+                  <span class="badge bg-white text-primary border font-monospace small" style="font-size: 11px;">{{ p.code or 'بدون کد' }}</span>
+                </div>
+                <div class="d-flex align-items-center justify-content-between text-muted small" style="font-size: 11.5px;">
+                  <span><i class="fas fa-user-tie me-1"></i>مدیر: {{ p.manager_name or 'تعیین نشده' }}</span>
+                  <span class="fw-bold text-success">{{ to_farsi_digits(p.progress) }}٪</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div class="text-center text-muted py-3">
+          <i class="fas fa-info-circle me-1"></i> هیچ پروژه‌ای در سامانه تعریف نشده است.
+        </div>
+        {% endif %}
+
+        <div class="alert alert-light border mt-3 mb-0 py-2 px-3 small text-muted d-flex align-items-center gap-2" style="font-size: 12px; border-radius: 8px;">
+          <i class="fas fa-shield-alt text-primary fs-6"></i>
+          <span><strong>نکته:</strong> کاربران با سطح دسترسی «مدیر ارشد سامانه (Admin)» به صورت خودکار به تمامی پروژه‌ها دسترسی کامل دارند.</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Form Actions -->
+    <div class="d-flex align-items-center justify-content-end gap-2 mt-4">
+      <a href="{{ url_for('users_bp.user_list') }}" class="btn btn-secondary" style="border-radius: 8px;">انصراف</a>
+      <button type="submit" class="btn btn-primary px-4" style="border-radius: 8px; font-weight: 700;">
+        <i class="fas fa-save me-1"></i> ذخیره اطلاعات و دسترسی‌ها
+      </button>
+    </div>
+  </form>
+</div>
+
+<script>
+  const loginEnabled = document.getElementById('login_enabled');
+  const loginDetails = document.getElementById('loginDetails');
+
+  function syncLoginDetails() {
+    if (loginEnabled.checked) {
+      loginDetails.style.display = 'block';
+    } else {
+      loginDetails.style.display = 'none';
+    }
+  }
+
+  function toggleAllPerms(select) {
+    var checks = document.querySelectorAll('.perm-check');
+    checks.forEach(function(c) {
+      c.checked = select;
+    });
+  }
+
+  function toggleAllProjects(select) {
+    var pChecks = document.querySelectorAll('.project-check');
+    pChecks.forEach(function(c) {
+      c.checked = select;
+    });
+  }
+
+  loginEnabled.addEventListener('change', syncLoginDetails);
+  syncLoginDetails();
+</script>
+{% endblock %}

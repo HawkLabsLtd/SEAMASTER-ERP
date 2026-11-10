@@ -1,0 +1,1195 @@
+{% extends 'base.html' %}
+{% block content %}
+<style>
+  /* ==========================================================================
+     Energy & Sustainability Dashboard Dedicated Responsive Styling
+     ========================================================================== */
+  .energy-dashboard-container {
+    max-width: 1400px;
+    margin: 15px auto 60px auto;
+    padding: 0 20px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  /* 1. Hero Header */
+  .energy-hero-card {
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 55%, #0d9488 100%);
+    border-radius: 16px;
+    padding: 24px 28px;
+    color: #ffffff;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 18px;
+    box-shadow: 0 10px 25px -5px rgba(13, 148, 136, 0.25);
+    margin-bottom: 24px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  .energy-hero-content {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+  }
+  .energy-hero-icon-box {
+    width: 58px;
+    height: 58px;
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 26px;
+    color: #f59e0b;
+    flex-shrink: 0;
+  }
+  .energy-hero-title {
+    font-size: 20px;
+    font-weight: 800;
+    margin: 0;
+    color: #ffffff;
+    letter-spacing: -0.5px;
+  }
+  .energy-hero-subtitle {
+    font-size: 13px;
+    color: #cbd5e1;
+    margin: 4px 0 0 0;
+    line-height: 1.5;
+  }
+
+  /* 2. Toolbar & Segmented Control */
+  .energy-toolbar {
+    background: #ffffff;
+    border-radius: 14px;
+    border: 1px solid #e2e8f0;
+    padding: 12px 18px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 14px;
+    margin-bottom: 24px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  .energy-tabs-wrapper {
+    display: flex;
+    gap: 6px;
+    background: #f1f5f9;
+    padding: 4px;
+    border-radius: 10px;
+    border: 1px solid #e2e8f0;
+    flex-wrap: wrap;
+  }
+  .energy-tab-btn {
+    border: none;
+    background: transparent;
+    padding: 7px 16px;
+    border-radius: 8px;
+    font-size: 12.5px;
+    font-weight: 700;
+    color: #64748b;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    text-decoration: none;
+  }
+  .energy-tab-btn:hover {
+    color: #0f172a;
+  }
+  .energy-tab-btn.active {
+    background: #ffffff;
+    color: #0f172a;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+  }
+  .energy-filters-group {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .energy-filter-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .energy-filter-label {
+    font-size: 12px;
+    font-weight: 700;
+    color: #475569;
+    margin: 0;
+    white-space: nowrap;
+  }
+  .energy-select {
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #0f172a;
+    background: #f8fafc;
+    outline: none;
+    cursor: pointer;
+    min-width: 130px;
+  }
+  .energy-select:focus {
+    border-color: #0d9488;
+    box-shadow: 0 0 0 2px rgba(13, 148, 136, 0.15);
+  }
+
+  /* 3. KPI Cards Grid */
+  .energy-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 18px;
+    margin-bottom: 24px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  @media (max-width: 1100px) {
+    .energy-kpi-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 600px) {
+    .energy-kpi-grid { grid-template-columns: 1fr; }
+  }
+
+  .energy-kpi-card {
+    background: #ffffff;
+    border-radius: 14px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 4px 16px -2px rgba(0, 0, 0, 0.04);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+  .energy-kpi-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px -4px rgba(0, 0, 0, 0.08);
+  }
+  .energy-kpi-card.card-elec { border-top: 4px solid #f59e0b; }
+  .energy-kpi-card.card-gas { border-top: 4px solid #ef4444; }
+  .energy-kpi-card.card-water { border-top: 4px solid #0284c7; }
+  .energy-kpi-card.card-eco { border-top: 4px solid #10b981; }
+
+  .energy-kpi-body {
+    padding: 18px 20px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .energy-kpi-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    flex-shrink: 0;
+  }
+  .energy-kpi-info {
+    flex-grow: 1;
+    overflow: hidden;
+  }
+  .energy-kpi-label {
+    font-size: 12px;
+    color: #64748b;
+    font-weight: 600;
+    margin-bottom: 2px;
+    display: block;
+  }
+  .energy-kpi-number {
+    font-size: 22px;
+    font-weight: 800;
+    color: #0f172a;
+    margin: 0;
+    line-height: 1.2;
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+  }
+  .energy-kpi-unit {
+    font-size: 13px;
+    font-weight: 500;
+    color: #64748b;
+  }
+  .energy-kpi-footer {
+    background: #f8fafc;
+    border-top: 1px solid #f1f5f9;
+    padding: 10px 20px;
+    font-size: 11.5px;
+    color: #64748b;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  /* 4. Chart Cards & Layout Grids */
+  .energy-charts-grid-main {
+    display: grid;
+    grid-template-columns: 1.7fr 1fr;
+    gap: 20px;
+    margin-bottom: 24px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  @media (max-width: 992px) {
+    .energy-charts-grid-main { grid-template-columns: 1fr; }
+  }
+
+  .energy-charts-grid-two {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-bottom: 24px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  @media (max-width: 992px) {
+    .energy-charts-grid-two { grid-template-columns: 1fr; }
+  }
+
+  .energy-charts-grid-deep {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 20px;
+    margin-bottom: 24px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  @media (max-width: 992px) {
+    .energy-charts-grid-deep { grid-template-columns: 1fr; }
+  }
+
+  .energy-chart-card {
+    background: #ffffff;
+    border-radius: 14px;
+    border: 1px solid #e2e8f0;
+    padding: 18px 20px;
+    box-shadow: 0 4px 16px -2px rgba(0, 0, 0, 0.04);
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  .energy-chart-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #f1f5f9;
+    padding-bottom: 12px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .energy-chart-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: #0f172a;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .energy-chart-canvas-wrap {
+    position: relative;
+    width: 100%;
+    height: 320px;
+    flex-grow: 1;
+  }
+
+  /* 5. Building Profile Cards Grid */
+  .energy-buildings-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  @media (max-width: 1100px) {
+    .energy-buildings-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 600px) {
+    .energy-buildings-grid { grid-template-columns: 1fr; }
+  }
+
+  .energy-building-card {
+    background: #f8fafc;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    box-sizing: border-box;
+  }
+  .energy-building-title {
+    font-size: 13.5px;
+    font-weight: 700;
+    color: #0f172a;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .energy-metric-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 0;
+    border-bottom: 1px solid #f1f5f9;
+    font-size: 12px;
+  }
+  .energy-metric-row:last-child {
+    border-bottom: none;
+  }
+
+  /* Tables */
+  .energy-records-card {
+    background: #ffffff;
+    border-radius: 14px;
+    border: 1px solid #e2e8f0;
+    overflow: hidden;
+    box-shadow: 0 4px 16px -2px rgba(0, 0, 0, 0.04);
+    width: 100%;
+    box-sizing: border-box;
+  }
+</style>
+
+<div class="energy-dashboard-container">
+
+  <!-- 1. Hero Header -->
+  <div class="energy-hero-card">
+    <div class="energy-hero-content">
+      <div class="energy-hero-icon-box">
+        <i class="fas fa-bolt"></i>
+      </div>
+      <div>
+        <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+          <h2 class="energy-hero-title">داشبورد پایش مصرف انرژی و پایداری</h2>
+          <span style="background: rgba(20, 184, 166, 0.25); border: 1px solid #14b8a6; color: #5eead4; font-size: 11.5px; border-radius: 20px; padding: 3px 10px; font-weight: 600;">
+            <i class="fas fa-leaf me-1"></i> پایش بلادرنگ حامل‌های انرژی
+          </span>
+        </div>
+        <p class="energy-hero-subtitle">
+          تحلیل و ارزیابی جامع مصرف برق (تعرفه‌های سه‌گانه)، گاز طبیعی و آب مصرفی ساختمان‌های {{ org_name }}
+        </p>
+      </div>
+    </div>
+
+    <div>
+      <form method="post" action="{{ url_for('energy_dashboard.reload_data') }}" style="margin: 0;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <button type="submit" class="btn btn-sm btn-light text-dark fw-bold px-3 shadow-sm" style="border-radius: 8px; height: 36px; display: inline-flex; align-items: center; gap: 6px;">
+          <i class="fas fa-sync-alt text-teal"></i> بروزرسانی از اکسل
+        </button>
+      </form>
+    </div>
+  </div>
+
+  {% if error_msg %}
+  <div class="alert alert-warning d-flex align-items-center mb-4" role="alert" style="border-radius: 12px;">
+    <i class="fas fa-exclamation-triangle fs-4 me-3 text-warning"></i>
+    <div>{{ error_msg }}</div>
+  </div>
+  {% endif %}
+
+  <!-- 2. Interactive Toolbar (Tabs + Multi-Filters) -->
+  <div class="energy-toolbar">
+    
+    <!-- Tab Switcher -->
+    <div class="energy-tabs-wrapper">
+      <button type="button" class="energy-tab-btn active" id="tab-btn-overview" onclick="switchEnergyTab('overview')">
+        <i class="fas fa-chart-pie"></i> نمای جامع
+      </button>
+      <button type="button" class="energy-tab-btn" id="tab-btn-electricity" onclick="switchEnergyTab('electricity')">
+        <i class="fas fa-bolt text-warning"></i> برق (kWh)
+      </button>
+      <button type="button" class="energy-tab-btn" id="tab-btn-gas" onclick="switchEnergyTab('gas')">
+        <i class="fas fa-fire text-danger"></i> گاز (m³)
+      </button>
+      <button type="button" class="energy-tab-btn" id="tab-btn-water" onclick="switchEnergyTab('water')">
+        <i class="fas fa-tint text-info"></i> آب (m³)
+      </button>
+      <button type="button" class="energy-tab-btn" id="tab-btn-records" onclick="switchEnergyTab('records')">
+        <i class="fas fa-file-invoice"></i> ریز قبوض
+      </button>
+    </div>
+
+    <!-- Filters (Building & Year) -->
+    <div class="energy-filters-group">
+      <div class="energy-filter-item">
+        <label class="energy-filter-label">ساختمان:</label>
+        <select id="energyBuildingFilter" class="energy-select" style="width: 175px;" onchange="onFilterChanged()">
+          <option value="all" {% if selected_building == 'all' %}selected{% endif %}>🏢 همه ساختمان‌ها</option>
+          {% for b in buildings %}
+          <option value="{{ b }}" {% if selected_building == b %}selected{% endif %}>{{ b }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="energy-filter-item">
+        <label class="energy-filter-label">سال:</label>
+        <select id="energyYearFilter" class="energy-select" style="width: 120px;" onchange="onFilterChanged()">
+          <option value="all" {% if selected_year == 'all' %}selected{% endif %}>📅 همه سال‌ها</option>
+          {% for y in years %}
+          <option value="{{ y }}" {% if selected_year|string == y|string %}selected{% endif %}>سال {{ to_farsi_digits(y) }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- 3. Top 4 Executive KPI Cards -->
+  <div class="energy-kpi-grid">
+    
+    <!-- Electricity Card -->
+    <div class="energy-kpi-card card-elec">
+      <div class="energy-kpi-body">
+        <div class="energy-kpi-icon" style="background: #fef3c7; color: #d97706;">
+          <i class="fas fa-bolt"></i>
+        </div>
+        <div class="energy-kpi-info">
+          <span class="energy-kpi-label">مجموع مصرف برق</span>
+          <h3 class="energy-kpi-number" id="kpi-elec-total">
+            {{ to_farsi_digits('{:,.0f}'.format(kpis.elec_total)) }}
+            <span class="energy-kpi-unit">kWh</span>
+          </h3>
+        </div>
+      </div>
+      <div class="energy-kpi-footer">
+        <span>سهم ساعات اوج (پرباری):</span>
+        <strong class="text-danger" id="kpi-elec-peak-pct">{{ to_farsi_digits(kpis.elec_peak_pct) }}٪</strong>
+      </div>
+    </div>
+
+    <!-- Gas Card -->
+    <div class="energy-kpi-card card-gas">
+      <div class="energy-kpi-body">
+        <div class="energy-kpi-icon" style="background: #fee2e2; color: #dc2626;">
+          <i class="fas fa-fire"></i>
+        </div>
+        <div class="energy-kpi-info">
+          <span class="energy-kpi-label">مجموع مصرف گاز طبیعی</span>
+          <h3 class="energy-kpi-number" id="kpi-gas-total">
+            {{ to_farsi_digits('{:,.0f}'.format(kpis.gas_total)) }}
+            <span class="energy-kpi-unit">m³</span>
+          </h3>
+        </div>
+      </div>
+      <div class="energy-kpi-footer">
+        <span>تعداد کل قرائت‌های گاز:</span>
+        <strong class="text-dark" id="kpi-gas-count">{{ to_farsi_digits(kpis.gas_bills_count) }} دوره</strong>
+      </div>
+    </div>
+
+    <!-- Water Card -->
+    <div class="energy-kpi-card card-water">
+      <div class="energy-kpi-body">
+        <div class="energy-kpi-icon" style="background: #e0f2fe; color: #0284c7;">
+          <i class="fas fa-tint"></i>
+        </div>
+        <div class="energy-kpi-info">
+          <span class="energy-kpi-label">مجموع مصرف آب</span>
+          <h3 class="energy-kpi-number" id="kpi-water-total">
+            {{ to_farsi_digits('{:,.0f}'.format(kpis.water_total)) }}
+            <span class="energy-kpi-unit">m³</span>
+          </h3>
+        </div>
+      </div>
+      <div class="energy-kpi-footer">
+        <span>میانگین مصرف ماهانه آب:</span>
+        <strong class="text-primary" id="kpi-water-avg">{{ to_farsi_digits(kpis.water_avg_monthly) }} m³/ماه</strong>
+      </div>
+    </div>
+
+    <!-- Main Consumer Card -->
+    <div class="energy-kpi-card card-eco">
+      <div class="energy-kpi-body">
+        <div class="energy-kpi-icon" style="background: #d1fae5; color: #059669;">
+          <i class="fas fa-building"></i>
+        </div>
+        <div class="energy-kpi-info">
+          <span class="energy-kpi-label">کانون اصلی مصرف انرژی</span>
+          <h3 class="energy-kpi-number" id="kpi-top-building" style="font-size: 16px;">
+            {{ kpis.top_elec_building }}
+          </h3>
+        </div>
+      </div>
+      <div class="energy-kpi-footer">
+        <span>سهم از کل مصرف برق:</span>
+        <strong class="text-success" id="kpi-top-share">{{ to_farsi_digits(kpis.top_elec_share) }}٪</strong>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- 4. TAB PANES -->
+
+  <!-- PANE 1: Overview & Summary -->
+  <div id="pane-overview" class="energy-tab-pane">
+    
+    <!-- Row 1: Electricity Stacked Bar (65%) + Building Share Donut (35%) -->
+    <div class="energy-charts-grid-main">
+      <div class="energy-chart-card">
+        <div class="energy-chart-header">
+          <h6 class="energy-chart-title">
+            <i class="fas fa-bolt text-warning"></i> روند زمانی مصرف برق به تفکیک تعرفه (kWh)
+          </h6>
+          <span class="badge bg-light text-secondary border font-monospace" style="font-size: 11px;">کم‌باری / میان‌باری / پرباری</span>
+        </div>
+        <div class="energy-chart-canvas-wrap">
+          <canvas id="chartElecTimeline"></canvas>
+        </div>
+      </div>
+
+      <div class="energy-chart-card">
+        <div class="energy-chart-header">
+          <h6 class="energy-chart-title">
+            <i class="fas fa-chart-pie text-primary"></i> سهم ساختمان‌ها از مصرف برق
+          </h6>
+          <span class="badge bg-primary-subtle text-primary border" style="font-size: 11px;">توزیع درصدی</span>
+        </div>
+        <div class="energy-chart-canvas-wrap">
+          <canvas id="chartElecBuildingShare"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Row 2: Gas Timeline (50%) + Water Timeline (50%) -->
+    <div class="energy-charts-grid-two">
+      <div class="energy-chart-card">
+        <div class="energy-chart-header">
+          <h6 class="energy-chart-title">
+            <i class="fas fa-fire text-danger"></i> روند مصرف گاز طبیعی در دوره‌های قرائت (m³)
+          </h6>
+          <span class="badge bg-danger-subtle text-danger border" style="font-size: 11px;">نوسانات فصلی</span>
+        </div>
+        <div class="energy-chart-canvas-wrap">
+          <canvas id="chartGasTimeline"></canvas>
+        </div>
+      </div>
+
+      <div class="energy-chart-card">
+        <div class="energy-chart-header">
+          <h6 class="energy-chart-title">
+            <i class="fas fa-tint text-info"></i> روند مصرف آب ساختمان‌ها (m³)
+          </h6>
+          <span class="badge bg-info-subtle text-info border" style="font-size: 11px;">دوره‌های قرائت</span>
+        </div>
+        <div class="energy-chart-canvas-wrap">
+          <canvas id="chartWaterTimeline"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Building Profiles Summary Cards -->
+    <div class="energy-chart-card mb-4">
+      <div class="energy-chart-header">
+        <h6 class="energy-chart-title">
+          <i class="fas fa-city text-teal"></i> پروفایل مصرف انرژی ساختمان‌های {{ org_name }}
+        </h6>
+        <span class="text-muted small">تفکیک جامع حامل‌های انرژی برای هر ساختمان</span>
+      </div>
+      
+      <div class="energy-buildings-grid">
+        {% for b in buildings %}
+        <div class="energy-building-card">
+          <div>
+            <div class="energy-building-title">
+              <i class="fas fa-building text-primary"></i> {{ b }}
+            </div>
+            
+            <div style="display: flex; flex-direction: column; gap: 4px; margin-top: 8px;">
+              <div class="energy-metric-row">
+                <span class="text-muted"><i class="fas fa-bolt text-warning me-1"></i> برق:</span>
+                <strong class="font-monospace text-dark">{{ to_farsi_digits('{:,.0f}'.format(kpis.building_elec.get(b, 0))) }} kWh</strong>
+              </div>
+              <div class="energy-metric-row">
+                <span class="text-muted"><i class="fas fa-fire text-danger me-1"></i> گاز:</span>
+                <strong class="font-monospace text-dark">{{ to_farsi_digits('{:,.0f}'.format(kpis.building_gas.get(b, 0))) }} m³</strong>
+              </div>
+              <div class="energy-metric-row">
+                <span class="text-muted"><i class="fas fa-tint text-info me-1"></i> آب:</span>
+                <strong class="font-monospace text-dark">{{ to_farsi_digits('{:,.0f}'.format(kpis.building_water.get(b, 0))) }} m³</strong>
+              </div>
+            </div>
+          </div>
+          
+          <div style="margin-top: 14px; padding-top: 10px; border-top: 1px solid #e2e8f0; text-align: center;">
+            <a href="{{ url_for('energy_dashboard.index', building=b) }}" class="btn btn-sm btn-outline-primary w-100 py-1" style="font-size: 11.5px; border-radius: 6px;">
+              <i class="fas fa-filter me-1"></i> فیلتر این ساختمان
+            </a>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+  </div>
+
+  <!-- PANE 2: Electricity Deep Dive -->
+  <div id="pane-electricity" class="energy-tab-pane" style="display: none;">
+    <div class="energy-charts-grid-deep">
+      <div class="energy-chart-card">
+        <div class="energy-chart-header">
+          <h6 class="energy-chart-title">
+            <i class="fas fa-bolt text-warning"></i> مقایسه مجموع مصرف برق به تفکیک ساختمان‌ها (kWh)
+          </h6>
+        </div>
+        <div class="energy-chart-canvas-wrap">
+          <canvas id="chartElecTariffBar"></canvas>
+        </div>
+      </div>
+
+      <div class="energy-chart-card">
+        <div class="energy-chart-header">
+          <h6 class="energy-chart-title">
+            <i class="fas fa-pie-chart text-warning"></i> نسبت بارهای مصرفی
+          </h6>
+        </div>
+        <div class="energy-chart-canvas-wrap">
+          <canvas id="chartElecTariffDonut"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PANE 3: Gas Deep Dive -->
+  <div id="pane-gas" class="energy-tab-pane" style="display: none;">
+    <div class="energy-charts-grid-deep">
+      <div class="energy-chart-card">
+        <div class="energy-chart-header">
+          <h6 class="energy-chart-title">
+            <i class="fas fa-fire text-danger"></i> مصرف گاز طبیعی به تفکیک ساختمان‌ها (m³)
+          </h6>
+        </div>
+        <div class="energy-chart-canvas-wrap">
+          <canvas id="chartGasBuildingBar"></canvas>
+        </div>
+      </div>
+
+      <div class="energy-chart-card">
+        <div class="energy-chart-header">
+          <h6 class="energy-chart-title">
+            <i class="fas fa-chart-pie text-danger"></i> سهم ساختمان‌ها در مصرف گاز
+          </h6>
+        </div>
+        <div class="energy-chart-canvas-wrap">
+          <canvas id="chartGasDonut"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PANE 4: Water Deep Dive -->
+  <div id="pane-water" class="energy-tab-pane" style="display: none;">
+    <div class="energy-charts-grid-deep">
+      <div class="energy-chart-card">
+        <div class="energy-chart-header">
+          <h6 class="energy-chart-title">
+            <i class="fas fa-tint text-info"></i> مصرف آب به تفکیک ساختمان‌ها (m³)
+          </h6>
+        </div>
+        <div class="energy-chart-canvas-wrap">
+          <canvas id="chartWaterBuildingBar"></canvas>
+        </div>
+      </div>
+
+      <div class="energy-chart-card">
+        <div class="energy-chart-header">
+          <h6 class="energy-chart-title">
+            <i class="fas fa-chart-pie text-info"></i> سهم ساختمان‌ها در مصرف آب
+          </h6>
+        </div>
+        <div class="energy-chart-canvas-wrap">
+          <canvas id="chartWaterDonut"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PANE 5: Detailed Records & Invoices Table -->
+  <div id="pane-records" class="energy-tab-pane" style="display: none;">
+    <div class="energy-records-card">
+      
+      <!-- Sub-Tabs for Record Types -->
+      <div style="background: #ffffff; padding: 14px 18px; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+        <div style="display: flex; gap: 8px;">
+          <button type="button" class="btn btn-sm btn-outline-warning text-dark active" id="subtab-elec-btn" onclick="showRecordTable('elec')" style="border-radius: 8px; font-weight: 700;">
+            <i class="fas fa-bolt text-warning me-1"></i> قبوض برق ({{ to_farsi_digits(elec_records|length) }})
+          </button>
+          <button type="button" class="btn btn-sm btn-outline-danger text-dark" id="subtab-gas-btn" onclick="showRecordTable('gas')" style="border-radius: 8px; font-weight: 700;">
+            <i class="fas fa-fire text-danger me-1"></i> قبوض گاز ({{ to_farsi_digits(gas_records|length) }})
+          </button>
+          <button type="button" class="btn btn-sm btn-outline-info text-dark" id="subtab-water-btn" onclick="showRecordTable('water')" style="border-radius: 8px; font-weight: 700;">
+            <i class="fas fa-tint text-info me-1"></i> قبوض آب ({{ to_farsi_digits(water_records|length) }})
+          </button>
+        </div>
+
+        <div class="small text-muted">
+          نمایش ریز قرائت‌ها و شناسه‌های قبض بر اساس فیلترهای فعال
+        </div>
+      </div>
+
+      <div>
+        
+        <!-- Table 1: Electricity Records -->
+        <div id="table-elec-wrap" style="max-height: 520px; overflow-y: auto; overflow-x: auto;">
+          <table class="table table-hover align-middle mb-0" style="font-size: 12.5px; width: 100%;">
+            <thead class="table-light sticky-top" style="background: #f8fafc;">
+              <tr>
+                <th class="py-3 px-3">شناسه قبض</th>
+                <th>ساختمان / کنتور</th>
+                <th>تاریخ قرائت</th>
+                <th class="text-center">کم‌باری (kWh)</th>
+                <th class="text-center">میان‌باری (kWh)</th>
+                <th class="text-center text-danger">پرباری (kWh)</th>
+                <th class="text-center fw-bold text-primary">مجموع مصرف (kWh)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for r in elec_records %}
+              <tr>
+                <td class="px-3 font-monospace fw-bold text-secondary">{{ r['شناسه_قبض'] }}</td>
+                <td><span class="fw-bold text-dark">{{ r['ساختمان_خام'] }}</span></td>
+                <td class="font-monospace" dir="ltr">{{ to_farsi_digits(r['تاریخ_شمسی']) }}</td>
+                <td class="text-center font-monospace">{{ to_farsi_digits('{:,.0f}'.format(r['کم_باری'])) }}</td>
+                <td class="text-center font-monospace">{{ to_farsi_digits('{:,.0f}'.format(r['میان_باری'])) }}</td>
+                <td class="text-center font-monospace text-danger fw-bold">{{ to_farsi_digits('{:,.0f}'.format(r['پرباری'])) }}</td>
+                <td class="text-center font-monospace fw-bold text-primary">{{ to_farsi_digits('{:,.0f}'.format(r['مجموع_مصرف_kwh'])) }}</td>
+              </tr>
+              {% else %}
+              <tr><td colspan="7" class="text-center py-4 text-muted">موردی یافت نشد</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Table 2: Gas Records -->
+        <div id="table-gas-wrap" style="display: none; max-height: 520px; overflow-y: auto; overflow-x: auto;">
+          <table class="table table-hover align-middle mb-0" style="font-size: 12.5px; width: 100%;">
+            <thead class="table-light sticky-top" style="background: #f8fafc;">
+              <tr>
+                <th class="py-3 px-3">شناسه قبض</th>
+                <th>ساختمان</th>
+                <th>تاریخ قرائت</th>
+                <th class="text-center fw-bold text-danger">کارکرد شمارش‌گر (m³)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for r in gas_records %}
+              <tr>
+                <td class="px-3 font-monospace fw-bold text-secondary">{{ r['شناسه_قبض'] }}</td>
+                <td><span class="fw-bold text-dark">{{ r['ساختمان_خام'] }}</span></td>
+                <td class="font-monospace" dir="ltr">{{ to_farsi_digits(r['تاریخ_شمسی']) }}</td>
+                <td class="text-center font-monospace fw-bold text-danger">{{ to_farsi_digits('{:,.0f}'.format(r['کارکرد_متر_مکعب'])) }}</td>
+              </tr>
+              {% else %}
+              <tr><td colspan="4" class="text-center py-4 text-muted">موردی یافت نشد</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Table 3: Water Records -->
+        <div id="table-water-wrap" style="display: none; max-height: 520px; overflow-y: auto; overflow-x: auto;">
+          <table class="table table-hover align-middle mb-0" style="font-size: 12.5px; width: 100%;">
+            <thead class="table-light sticky-top" style="background: #f8fafc;">
+              <tr>
+                <th class="py-3 px-3">شناسه قبض</th>
+                <th>ساختمان</th>
+                <th>تاریخ قرائت</th>
+                <th class="text-center">تعداد روز</th>
+                <th class="text-center text-info">متوسط مصرف ماهیانه</th>
+                <th class="text-center fw-bold text-primary">مصرف به متر مکعب (m³)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for r in water_records %}
+              <tr>
+                <td class="px-3 font-monospace fw-bold text-secondary">{{ r['شناسه_قبض'] }}</td>
+                <td><span class="fw-bold text-dark">{{ r['ساختمان_خام'] }}</span></td>
+                <td class="font-monospace" dir="ltr">{{ to_farsi_digits(r['تاریخ_شمسی']) }}</td>
+                <td class="text-center font-monospace">{{ to_farsi_digits('{:,.0f}'.format(r['تعداد_روز'])) }}</td>
+                <td class="text-center font-monospace text-info">{{ to_farsi_digits('{:,.0f}'.format(r['متوسط_مصرف_ماهیانه'])) }}</td>
+                <td class="text-center font-monospace fw-bold text-primary">{{ to_farsi_digits('{:,.0f}'.format(r['مصرف_متر_مکعب'])) }}</td>
+              </tr>
+              {% else %}
+              <tr><td colspan="6" class="text-center py-4 text-muted">موردی یافت نشد</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Chart.js and Dashboard Script -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+  // Initial KPI Data from backend
+  var initialKpis = {{ kpis|tojson }};
+  var currentKpis = initialKpis;
+  var charts = {};
+
+  var PALETTE = [
+    '#3b82f6', '#10b981', '#f59e0b', '#ef4444', 
+    '#8b5cf6', '#06b6d4', '#ec4899', '#64748b'
+  ];
+
+  function toFarsiDigits(n) {
+    if (n === null || n === undefined) return '';
+    var farsiDigits = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'];
+    return n.toString().replace(/[0-9]/g, function(d) { return farsiDigits[d]; });
+  }
+
+  function formatNumberFa(num) {
+    if (num === null || num === undefined) return '۰';
+    var formatted = Math.round(num).toLocaleString('en-US');
+    return toFarsiDigits(formatted);
+  }
+
+  // Tab switching
+  function switchEnergyTab(tabName) {
+    document.querySelectorAll('.energy-tab-pane').forEach(function(p) { p.style.display = 'none'; });
+    document.querySelectorAll('.energy-tab-btn').forEach(function(b) { b.classList.remove('active'); });
+
+    var targetPane = document.getElementById('pane-' + tabName);
+    var targetBtn = document.getElementById('tab-btn-' + tabName);
+    if (targetPane) targetPane.style.display = 'block';
+    if (targetBtn) targetBtn.classList.add('active');
+
+    // Re-render and resize charts on tab view
+    setTimeout(function() {
+      renderAllCharts(currentKpis);
+    }, 30);
+  }
+
+  // Record Sub-Tabs
+  function showRecordTable(type) {
+    ['elec', 'gas', 'water'].forEach(function(t) {
+      var wrap = document.getElementById('table-' + t + '-wrap');
+      var btn = document.getElementById('subtab-' + t + '-btn');
+      if (wrap) wrap.style.display = (t === type) ? 'block' : 'none';
+      if (btn) {
+        if (t === type) btn.classList.add('active');
+        else btn.classList.remove('active');
+      }
+    });
+  }
+
+  // Filter Changed Handler
+  function onFilterChanged() {
+    var building = document.getElementById('energyBuildingFilter').value;
+    var year = document.getElementById('energyYearFilter').value;
+
+    fetch('/energy/api/data?building=' + encodeURIComponent(building) + '&year=' + encodeURIComponent(year))
+      .then(function(res) { return res.json(); })
+      .then(function(data) {
+        if (data.status === 'ok') {
+          currentKpis = data.kpis;
+          updateDashboardData(data.kpis);
+        }
+      })
+      .catch(function(err) {
+        console.error('Error fetching filtered energy data:', err);
+      });
+  }
+
+  function updateDashboardData(kpis) {
+    // 1. Update KPI numbers
+    document.getElementById('kpi-elec-total').innerHTML = formatNumberFa(kpis.elec_total) + ' <span class="energy-kpi-unit">kWh</span>';
+    document.getElementById('kpi-elec-peak-pct').textContent = toFarsiDigits(kpis.elec_peak_pct) + '٪';
+    document.getElementById('kpi-gas-total').innerHTML = formatNumberFa(kpis.gas_total) + ' <span class="energy-kpi-unit">m³</span>';
+    document.getElementById('kpi-gas-count').textContent = toFarsiDigits(kpis.gas_bills_count) + ' دوره';
+    document.getElementById('kpi-water-total').innerHTML = formatNumberFa(kpis.water_total) + ' <span class="energy-kpi-unit">m³</span>';
+    document.getElementById('kpi-water-avg').textContent = toFarsiDigits(kpis.water_avg_monthly) + ' m³/ماه';
+    document.getElementById('kpi-top-building').textContent = kpis.top_elec_building;
+    document.getElementById('kpi-top-share').textContent = toFarsiDigits(kpis.top_elec_share) + '٪';
+
+    // 2. Render / Update Charts
+    renderAllCharts(kpis);
+  }
+
+  function renderAllCharts(kpis) {
+    // 1. Electricity Timeline Stacked Bar
+    var ctxElecTime = document.getElementById('chartElecTimeline');
+    if (ctxElecTime && ctxElecTime.offsetParent !== null) {
+      if (charts.elecTime) charts.elecTime.destroy();
+      var labels = kpis.timeline_elec.map(function(d) { return d.date; });
+      charts.elecTime = new Chart(ctxElecTime, {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [
+            { label: 'کم‌باری', data: kpis.timeline_elec.map(function(d) { return d.offpeak; }), backgroundColor: '#10b981', borderRadius: 4 },
+            { label: 'میان‌باری', data: kpis.timeline_elec.map(function(d) { return d.midpeak; }), backgroundColor: '#3b82f6', borderRadius: 4 },
+            { label: 'پرباری (پیک)', data: kpis.timeline_elec.map(function(d) { return d.peak; }), backgroundColor: '#ef4444', borderRadius: 4 }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            x: { stacked: true, grid: { display: false } },
+            y: { stacked: true, grid: { color: '#f1f5f9' } }
+          },
+          plugins: {
+            legend: { position: 'top', rtl: true, labels: { font: { family: 'Vazirmatn, sans-serif' } } }
+          }
+        }
+      });
+    }
+
+    // 2. Building Share in Electricity Donut
+    var ctxElecShare = document.getElementById('chartElecBuildingShare');
+    if (ctxElecShare && ctxElecShare.offsetParent !== null) {
+      if (charts.elecShare) charts.elecShare.destroy();
+      var bLabels = Object.keys(kpis.building_elec);
+      var bValues = Object.values(kpis.building_elec);
+      charts.elecShare = new Chart(ctxElecShare, {
+        type: 'doughnut',
+        data: {
+          labels: bLabels,
+          datasets: [{
+            data: bValues,
+            backgroundColor: PALETTE.slice(0, bLabels.length),
+            borderWidth: 2,
+            borderColor: '#ffffff'
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'bottom', rtl: true, labels: { font: { family: 'Vazirmatn, sans-serif', size: 11 } } }
+          }
+        }
+      });
+    }
+
+    // 3. Gas Timeline Area Chart
+    var ctxGasTime = document.getElementById('chartGasTimeline');
+    if (ctxGasTime && ctxGasTime.offsetParent !== null) {
+      if (charts.gasTime) charts.gasTime.destroy();
+      var gLabels = kpis.timeline_gas.map(function(d) { return d.date; });
+      charts.gasTime = new Chart(ctxGasTime, {
+        type: 'line',
+        data: {
+          labels: gLabels,
+          datasets: [{
+            label: 'مصرف گاز (m³)',
+            data: kpis.timeline_gas.map(function(d) { return d.total; }),
+            borderColor: '#ef4444',
+            backgroundColor: 'rgba(239, 68, 68, 0.15)',
+            fill: true,
+            tension: 0.35,
+            pointRadius: 4,
+            pointBackgroundColor: '#ef4444'
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            x: { grid: { display: false } },
+            y: { grid: { color: '#f1f5f9' } }
+          },
+          plugins: {
+            legend: { display: false }
+          }
+        }
+      });
+    }
+
+    // 4. Water Timeline Line Chart
+    var ctxWaterTime = document.getElementById('chartWaterTimeline');
+    if (ctxWaterTime && ctxWaterTime.offsetParent !== null) {
+      if (charts.waterTime) charts.waterTime.destroy();
+      var wLabels = kpis.timeline_water.map(function(d) { return d.date; });
+      charts.waterTime = new Chart(ctxWaterTime, {
+        type: 'line',
+        data: {
+          labels: wLabels,
+          datasets: [{
+            label: 'مصرف آب (m³)',
+            data: kpis.timeline_water.map(function(d) { return d.total; }),
+            borderColor: '#0284c7',
+            backgroundColor: 'rgba(2, 132, 199, 0.15)',
+            fill: true,
+            tension: 0.35,
+            pointRadius: 4,
+            pointBackgroundColor: '#0284c7'
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            x: { grid: { display: false } },
+            y: { grid: { color: '#f1f5f9' } }
+          },
+          plugins: {
+            legend: { display: false }
+          }
+        }
+      });
+    }
+
+    // 5. Electricity Deep Dive Tariff Breakdown Bar
+    var ctxElecTariffBar = document.getElementById('chartElecTariffBar');
+    if (ctxElecTariffBar && ctxElecTariffBar.offsetParent !== null) {
+      if (charts.elecTariffBar) charts.elecTariffBar.destroy();
+      var bKeys = Object.keys(kpis.building_elec);
+      charts.elecTariffBar = new Chart(ctxElecTariffBar, {
+        type: 'bar',
+        data: {
+          labels: bKeys,
+          datasets: [{
+            label: 'مجموع مصرف برق (kWh)',
+            data: Object.values(kpis.building_elec),
+            backgroundColor: '#f59e0b',
+            borderRadius: 6
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            x: { grid: { display: false } },
+            y: { grid: { color: '#f1f5f9' } }
+          }
+        }
+      });
+    }
+
+    // 6. Electricity Tariff Donut
+    var ctxElecTariffDonut = document.getElementById('chartElecTariffDonut');
+    if (ctxElecTariffDonut && ctxElecTariffDonut.offsetParent !== null) {
+      if (charts.elecTariffDonut) charts.elecTariffDonut.destroy();
+      charts.elecTariffDonut = new Chart(ctxElecTariffDonut, {
+        type: 'doughnut',
+        data: {
+          labels: ['کم‌باری', 'میان‌باری', 'پرباری (پیک)'],
+          datasets: [{
+            data: [kpis.elec_offpeak, kpis.elec_midpeak, kpis.elec_peak],
+            backgroundColor: ['#10b981', '#3b82f6', '#ef4444'],
+            borderWidth: 2
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'bottom', rtl: true }
+          }
+        }
+      });
+    }
+
+    // 7. Gas Deep Dive Bar & Donut
+    var ctxGasBar = document.getElementById('chartGasBuildingBar');
+    if (ctxGasBar && ctxGasBar.offsetParent !== null) {
+      if (charts.gasBar) charts.gasBar.destroy();
+      charts.gasBar = new Chart(ctxGasBar, {
+        type: 'bar',
+        data: {
+          labels: Object.keys(kpis.building_gas),
+          datasets: [{
+            label: 'مصرف گاز (m³)',
+            data: Object.values(kpis.building_gas),
+            backgroundColor: '#ef4444',
+            borderRadius: 6
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false
+        }
+      });
+    }
+
+    var ctxGasDonut = document.getElementById('chartGasDonut');
+    if (ctxGasDonut && ctxGasDonut.offsetParent !== null) {
+      if (charts.gasDonut) charts.gasDonut.destroy();
+      var gbKeys = Object.keys(kpis.building_gas);
+      charts.gasDonut = new Chart(ctxGasDonut, {
+        type: 'doughnut',
+        data: {
+          labels: gbKeys,
+          datasets: [{
+            data: Object.values(kpis.building_gas),
+            backgroundColor: PALETTE.slice(0, gbKeys.length)
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { position: 'bottom', rtl: true } }
+        }
+      });
+    }
+
+    // 8. Water Deep Dive Bar & Donut
+    var ctxWaterBar = document.getElementById('chartWaterBuildingBar');
+    if (ctxWaterBar && ctxWaterBar.offsetParent !== null) {
+      if (charts.waterBar) charts.waterBar.destroy();
+      charts.waterBar = new Chart(ctxWaterBar, {
+        type: 'bar',
+        data: {
+          labels: Object.keys(kpis.building_water),
+          datasets: [{
+            label: 'مصرف آب (m³)',
+            data: Object.values(kpis.building_water),
+            backgroundColor: '#0284c7',
+            borderRadius: 6
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false
+        }
+      });
+    }
+
+    var ctxWaterDonut = document.getElementById('chartWaterDonut');
+    if (ctxWaterDonut && ctxWaterDonut.offsetParent !== null) {
+      if (charts.waterDonut) charts.waterDonut.destroy();
+      var wbKeys = Object.keys(kpis.building_water);
+      charts.waterDonut = new Chart(ctxWaterDonut, {
+        type: 'doughnut',
+        data: {
+          labels: wbKeys,
+          datasets: [{
+            data: Object.values(kpis.building_water),
+            backgroundColor: PALETTE.slice(0, wbKeys.length)
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { position: 'bottom', rtl: true } }
+        }
+      });
+    }
+  }
+
+  // Initialize on DOM load
+  document.addEventListener('DOMContentLoaded', function() {
+    renderAllCharts(initialKpis);
+  });
+</script>
+{% endblock %}

@@ -1,0 +1,236 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid py-4" style="direction: rtl;">
+    <h2 class="mb-4 text-white fw-bold">تابلو پیگیری مصوبات</h2>
+
+    <div class="kanban-container">
+        {% for col_key, config in columns.items() %}
+        <div class="kanban-column glass-panel" data-column="{{ col_key }}" ondrop="drop(event)"
+            ondragover="allowDrop(event)">
+            <div class="kanban-header {{ col_key }}">
+                <h5 class="mb-0">{{ config.label }}</h5>
+                <span class="badge bg-light text-dark rounded-pill">{{ data[col_key]|length }}</span>
+            </div>
+
+            <div class="kanban-items">
+                {% for item in data[col_key] %}
+                <div class="kanban-card glass-card" id="item-{{ item.id }}" draggable="true" ondragstart="drag(event)"
+                    data-id="{{ item.id }}">
+                    <div class="card-body p-3">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <span class="badge bg-primary opacity-75">#{{ item.id }}</span>
+                            {% if item.due_date %}
+                            <small class="text-warning"><i class="fas fa-clock"></i> {{
+                                format_jalali_date_any(item.due_date) }}</small>
+                            {% endif %}
+                        </div>
+                        <h6 class="card-title fw-bold mb-2">{{ item.title or 'بدون عنوان' }}</h6>
+                        <p class="card-text small text-muted mb-2">
+                            <i class="fas fa-user-tie"></i> {{ item.assigned_to.name if item.assigned_to else 'تعیین
+                            نشده' }}
+                        </p>
+                        <div class="progress" style="height: 4px;">
+                            <div class="progress-bar" role="progressbar" style="width: {{ item.progress }}%;"
+                                aria-valuenow="{{ item.progress }}" aria-valuemin="0" aria-valuemax="100"></div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<style>
+    .kanban-container {
+        display: flex;
+        gap: 1.5rem;
+        /* overflow-x: auto; Removed for "No Side Scroll" */
+        padding-bottom: 1rem;
+        min-height: 70vh;
+        width: 100%;
+    }
+
+    .kanban-column {
+        flex: 1;
+        /* Grow and shrink equally */
+        /* min-width: 280px; Removed to prevent scroll */
+        background: rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 12px;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .kanban-header {
+        padding: 1rem;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: rgba(0, 0, 0, 0.1);
+        border-radius: 12px 12px 0 0;
+    }
+
+    .kanban-header.pending h5 {
+        color: #ffc107;
+    }
+
+    .kanban-header.in_progress h5 {
+        color: #0dcaf0;
+    }
+
+    .kanban-header.blocked h5 {
+        color: #dc3545;
+    }
+
+    .kanban-header.done h5 {
+        color: #198754;
+    }
+
+    .kanban-items {
+        padding: 1rem;
+        flex-grow: 1;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 0.8rem;
+    }
+
+    .kanban-card {
+        background: #fff;
+        /* Solid background for visibility */
+        border-radius: 15px;
+        padding: 1.25rem;
+        cursor: grab;
+        transition: transform 0.2s, box-shadow 0.2s;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+        /* Soft, premium shadow */
+        border-right: 4px solid transparent;
+        /* Accent placeholder */
+        position: relative;
+    }
+
+    .kanban-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+        z-index: 10;
+    }
+
+    .kanban-card:active {
+        cursor: grabbing;
+        transform: scale(0.98);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    }
+
+    /* Ensure text readability on white cards */
+    .kanban-card .card-title {
+        color: #2c3e50;
+    }
+
+
+
+    /* Accent borders based on status */
+    [data-column="pending"] .kanban-card {
+        border-right-color: #ffc107;
+    }
+
+    [data-column="approved"] .kanban-card {
+        border-right-color: #0dcaf0;
+    }
+
+    [data-column="in_progress"] .kanban-card {
+        border-right-color: #0d6efd;
+    }
+
+    /* Darker blue for contrast */
+    [data-column="completed"] .kanban-card {
+        border-right-color: #198754;
+    }
+
+    [data-column="blocked"] .kanban-card {
+        border-right-color: #dc3545;
+    }
+
+    /* Scrollbar Styling */
+    .kanban-items::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    .kanban-items::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 3px;
+    }
+</style>
+
+<script>
+    function allowDrop(ev) {
+        ev.preventDefault();
+        ev.currentTarget.style.background = "rgba(255, 255, 255, 0.1)";
+    }
+
+    function drag(ev) {
+        ev.dataTransfer.setData("text", ev.target.id);
+        ev.target.style.opacity = "0.5";
+    }
+
+    function drop(ev) {
+        ev.preventDefault();
+        var data = ev.dataTransfer.getData("text");
+        var draggedElement = document.getElementById(data);
+        var column = ev.currentTarget; // The .kanban-column element
+
+        // Reset styles
+        column.style.background = "";
+        draggedElement.style.opacity = "";
+
+        // Append to new column items container
+        var itemsContainer = column.querySelector('.kanban-items');
+        itemsContainer.appendChild(draggedElement);
+
+        // Update Status API Call
+        var itemId = draggedElement.getAttribute('data-id');
+        var newColumnKey = column.getAttribute('data-column');
+
+        fetch('{{ url_for("kanban.update_status") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify({
+                id: itemId,
+                column: newColumnKey
+            })
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    console.log("Status updated to:", data.new_status);
+                    // Update Badge Counts
+                    updateBadges();
+                } else {
+                    alert("Error updating status!");
+                }
+            })
+            .catch(err => console.error(err));
+    }
+
+    // Add event listener for dragleave to reset background
+    document.querySelectorAll('.kanban-column').forEach(col => {
+        col.addEventListener('dragleave', (e) => {
+            e.currentTarget.style.background = "";
+        });
+    });
+
+    function updateBadges() {
+        document.querySelectorAll('.kanban-column').forEach(col => {
+            const count = col.querySelector('.kanban-items').children.length;
+            col.querySelector('.badge').textContent = count;
+        });
+    }
+</script>
+{% endblock %}
